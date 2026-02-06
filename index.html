@@ -422,23 +422,22 @@
     </script>
 
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; position: relative; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .journal-box { background: #ffffff; border: 1px solid #fee2e2; }
         .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); }
         
-        /* FIX MOBILE TYPING : Assure que les inputs reçoivent les clics et ne sont pas bloqués */
+        /* FIX MOBILE : Assure la réactivité des zones de texte */
         input, textarea { 
-            font-size: 16px !important; /* Taille minimale pour éviter le zoom automatique iOS qui casse le scroll */
-            touch-action: manipulation;
-            position: relative;
-            z-index: 10;
+            font-size: 16px !important; /* Minimum pour éviter le blocage iOS */
             pointer-events: auto !important;
+            touch-action: manipulation;
             -webkit-user-select: text !important;
             user-select: text !important;
+            position: relative;
+            z-index: 10 !important;
         }
-        /* Empêche les éléments fixes de bloquer les touches au milieu */
-        main { position: relative; z-index: 1; }
+        main { position: relative; z-index: 5; }
     </style>
 </head>
 <body class="bg-[#FFF9FA] text-slate-800">
@@ -492,6 +491,7 @@
             <button onclick="window.logout()" class="p-3 bg-rose-50 rounded-2xl text-rose-500 active:scale-90 transition"><i data-lucide="power" class="w-6 h-6"></i></button>
         </header>
 
+        <!-- TAB CALENDRIER -->
         <div id="tab-calendar" class="p-4 space-y-6">
             <section class="bg-white border-2 border-rose-100 rounded-[2.5rem] p-6 shadow-sm animate-in fade-in slide-in-from-top-4 duration-700">
                 <div class="flex items-start gap-4">
@@ -532,6 +532,7 @@
             </section>
         </div>
 
+        <!-- TAB CUISINE -->
         <div id="tab-cuisine" class="hidden p-4 space-y-6 text-center">
             <section class="bg-white rounded-[2.5rem] p-8 shadow-sm border border-blue-50 text-center">
                 <div class="flex items-center justify-center gap-2 text-blue-500 mb-6"><i data-lucide="droplet" class="w-6 h-6 animate-bounce"></i><h3 class="text-[10px] font-black uppercase tracking-widest">Hydratation</h3></div>
@@ -546,10 +547,11 @@
             <section class="bg-white rounded-[2.5rem] p-6 shadow-sm space-y-4 border border-rose-50">
                 <h4 class="text-[9px] font-black text-rose-500 uppercase tracking-[0.2em] italic">Mon Carnet 📒</h4>
                 <div id="custom-recipes-list" class="space-y-2 text-center"></div>
-                <div class="flex gap-2 pt-2"><input type="text" id="recipe-input" placeholder="Idée de repas..." class="flex-1 bg-slate-50 border-none rounded-xl px-4 py-3 text-xs outline-none"><button onclick="window.addManualRecipe()" class="bg-rose-500 text-white p-3 rounded-xl shadow-md active:scale-95 transition"><i data-lucide="plus" class="w-4 h-4"></i></button></div>
+                <div class="flex gap-2 pt-2"><input type="text" id="recipe-input" placeholder="Idée de repas..." class="flex-1 bg-slate-50 border-none rounded-xl px-4 py-3 text-xs outline-none text-left"><button onclick="window.addManualRecipe()" class="bg-rose-500 text-white p-3 rounded-xl shadow-md active:scale-95 transition"><i data-lucide="plus" class="w-4 h-4"></i></button></div>
             </section>
         </div>
 
+        <!-- TAB SALON -->
         <div id="tab-salon" class="hidden p-4 space-y-6 flex flex-col min-h-[70vh] pb-44 text-center">
             <div class="bg-rose-500 p-6 rounded-[2.5rem] text-white shadow-lg mb-4 text-center"><h3 class="text-sm font-black italic">Salon des Sisters 💬</h3><p class="text-[9px] font-bold uppercase opacity-80 mt-1 tracking-widest text-center">Ensemble vers le bien</p></div>
             <section class="bg-white border border-rose-100 rounded-[2.5rem] p-6 shadow-sm mb-4"><div class="flex items-center gap-3 mb-4 text-left"><div class="bg-rose-500 p-2 rounded-xl text-white"><i data-lucide="users" class="w-4 h-4"></i></div><h4 class="text-[10px] font-black uppercase text-rose-600 tracking-widest italic text-left">Challenge Collectif</h4></div><div id="common-goals-container" class="space-y-3"></div></section>
@@ -557,6 +559,7 @@
             <div class="bg-white p-4 rounded-[2rem] shadow-2xl border border-rose-100 flex gap-2 items-center fixed bottom-[100px] left-4 right-4 z-30"><input type="text" id="wall-input" placeholder="Un mot doux ? ✨" class="flex-1 bg-slate-50 border-none rounded-xl px-4 py-3 text-xs outline-none text-left"><button onclick="window.postToWall()" class="bg-rose-500 text-white p-3 rounded-xl shadow-md active:scale-95 transition text-center"><i data-lucide="send" class="w-5 h-5"></i></button></div>
         </div>
 
+        <!-- TAB QUIZ -->
         <div id="tab-quiz" class="hidden p-4 space-y-6 flex flex-col h-[70vh] items-center justify-center text-center">
             <div id="quiz-intro" class="bg-white p-8 rounded-[2.5rem] text-center shadow-sm w-full border border-yellow-50 overflow-y-auto max-h-full">
                 <div class="bg-yellow-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-yellow-500 text-2xl">🏆</div>
@@ -582,6 +585,7 @@
             </div>
         </div>
 
+        <!-- TAB DHIKR -->
         <div id="tab-dhikr" class="hidden p-4 space-y-6 flex flex-col items-center text-center">
             <h3 class="text-sm font-black text-rose-600 italic mt-8 mb-4 text-center">Mon Tasbih ✨</h3>
             <div class="grid grid-cols-2 gap-4 w-full px-4 text-center">
@@ -593,6 +597,7 @@
             <button onclick="window.openResetModal()" class="mt-8 text-slate-300 font-bold text-[10px] uppercase tracking-widest flex items-center gap-2 bg-white px-6 py-3 rounded-full shadow-sm mx-auto text-center"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> Réinitialiser</button>
         </div>
 
+        <!-- TAB SPIRITUEL -->
         <div id="tab-spiritual" class="hidden p-4 space-y-6 pb-12 text-center">
             <section class="bg-white rounded-[2.5rem] p-6 shadow-sm border border-rose-50 text-center">
                 <h3 class="text-sm font-black text-rose-600 italic mb-4 text-center">Mon État d'Esprit ✨</h3>
@@ -617,6 +622,7 @@
         </div>
     </main>
 
+    <!-- NAVIGATION -->
     <nav id="app-nav" class="hidden fixed bottom-0 left-0 right-0 glass border-t flex justify-around p-4 pb-12 z-40 overflow-x-auto no-scrollbar text-center">
         <button onclick="window.switchTab('calendar')" id="nav-calendar" class="flex flex-col items-center gap-1 text-rose-600 min-w-[50px] text-center"><i data-lucide="calendar"></i><span class="text-[8px] font-black uppercase tracking-tight text-center">Suivi</span></button>
         <button onclick="window.switchTab('salon')" id="nav-salon" class="flex flex-col items-center gap-1 text-slate-300 min-w-[50px] text-center"><i data-lucide="message-circle"></i><span class="text-[8px] font-black uppercase tracking-tight text-center">Salon</span></button>
