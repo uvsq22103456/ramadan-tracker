@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Ramadan Sisters 🌙</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
+        .glass { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
+        .tab-active { color: #be185d; border-bottom: 3px solid #be185d; }
+        .day-btn { aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; border-radius: 1rem; border: 2px solid #f3f4f6; transition: all 0.2s; font-weight: 700; }
+        .day-fasted { background-color: #be185d; color: white; border-color: #be185d; box-shadow: 0 4px 10px rgba(190, 24, 93, 0.2); }
+        .day-selected { border-color: #be185d; background-color: #fff1f2; transform: scale(1.05); z-index: 10; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+        
+        /* Loading animation for Gemini */
+        .shimmer {
+            background: linear-gradient(90deg, #f0f0f0 25%, #fce7f3 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body class="bg-[#FFF9FA] text-slate-800">
+
+    <!-- ECRAN DE CONNEXION -->
+    <div id="auth-screen" class="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-6 text-center">
+        <div class="mb-12">
+            <div class="bg-rose-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+                <i data-lucide="moon" class="text-rose-500 w-12 h-12"></i>
+            </div>
+            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Ramadan Sisters</h1>
+            <p class="text-slate-400 mt-2">Partagez ce mois béni ensemble</p>
+        </div>
+
+        <div id="profile-grid" class="grid grid-cols-2 gap-4 w-full max-w-sm">
+            <!-- Les profils seront injectés ici -->
+        </div>
+
+        <div id="pin-pad" class="hidden w-full max-w-xs animate-in fade-in zoom-in duration-300">
+            <h2 id="pin-name" class="text-xl font-bold mb-6 text-rose-600"></h2>
+            <div class="flex justify-center mb-8">
+                <input type="password" id="pin-display" readonly maxlength="4" placeholder="••••" 
+                       class="w-full text-center text-4xl tracking-[1rem] bg-rose-50 border-none rounded-2xl p-4 text-rose-600 outline-none">
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+                <button onclick="pressKey('1')" class="bg-white p-5 rounded-2xl shadow-sm active:bg-rose-50 font-bold text-xl">1</button>
+                <button onclick="pressKey('2')" class="bg-white p-5 rounded-2xl shadow-sm active:bg-rose-50 font-bold text-xl">2</button>
+                <button onclick="pressKey('3')" class="bg-white p-5 rounded-2xl shadow-sm active:bg-rose-50 font-bold text-xl">3</button>
+                <button onclick="pressKey('4')" class="bg-white p-5 rounded-2xl shadow-sm active:bg-rose-50 font-bold text-xl">4</button>
+                <button onclick="pressKey('5')" class="bg-white p-5 rounded-2xl shadow-sm active:bg-rose-50 font-bold text-xl">5</button>
+                <button onclick="pressKey('6')" class="bg-white p-5 rounded-2xl shadow-sm active:bg-rose-50 font-bold text-xl">6</button>
+                <button onclick="pressKey('7')" class="bg-white p-5 rounded-2xl shadow-sm active:bg-rose-50 font-bold text-xl">7</button>
+                <button onclick="pressKey('8')" class="bg-white p-5 rounded-2xl shadow-sm active:bg-rose-50 font-bold text-xl">8</button>
+                <button onclick="pressKey('9')" class="bg-white p-5 rounded-2xl shadow-sm active:bg-rose-50 font-bold text-xl">9</button>
+                <button onclick="clearPin()" class="bg-rose-50 text-rose-400 p-5 rounded-2xl font-bold">C</button>
+                <button onclick="pressKey('0')" class="bg-white p-5 rounded-2xl shadow-sm active:bg-rose-50 font-bold text-xl">0</button>
+                <button onclick="validatePin()" class="bg-rose-500 text-white p-5 rounded-2xl font-bold shadow-md active:bg-rose-600">OK</button>
+            </div>
+            <button onclick="backToProfiles()" class="mt-8 text-slate-400 text-sm font-medium">Retour</button>
+        </div>
+    </div>
+
+    <!-- CONTENU DE L'APPLI -->
+    <main id="app-content" class="hidden min-h-screen pb-28">
+        
+        <!-- HEADER STATIQUE -->
+        <header class="p-6 pt-12 flex justify-between items-center bg-white rounded-b-[3rem] shadow-sm mb-6">
+            <div>
+                <h2 id="welcome-msg" class="text-2xl font-bold text-slate-800 italic">Salam !</h2>
+                <p id="today-date" class="text-[10px] font-bold text-rose-400 uppercase tracking-widest mt-1"></p>
+            </div>
+            <button onclick="logout()" class="p-3 bg-rose-50 rounded-2xl text-rose-500 active:scale-90 transition">
+                <i data-lucide="power" class="w-6 h-6"></i>
+            </button>
+        </header>
+
+        <!-- ONGLET : CALENDRIER (PRINCIPAL) -->
+        <div id="tab-calendar" class="p-4 space-y-6">
+            
+            <!-- CALENDRIER GRID -->
+            <section class="bg-white rounded-[2.5rem] p-6 shadow-sm">
+                <h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <i data-lucide="calendar-check" class="text-rose-500 w-5 h-5"></i> Mon Suivi Ramadan
+                </h3>
+                <div class="grid grid-cols-6 gap-2 mb-6" id="calendar-grid">
+                    <!-- Généré par JS -->
+                </div>
+                
+                <!-- CARTE RESUME -->
+                <div class="bg-rose-500 rounded-3xl p-5 text-white flex items-center justify-between shadow-lg shadow-rose-200">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase opacity-80 tracking-widest">Ma progression</p>
+                        <p class="text-2xl font-black"><span id="stats-fast-count">0</span> / 30 <span class="text-sm font-normal opacity-90 italic">jours jeûnés</span></p>
+                    </div>
+                    <div class="bg-white/20 p-3 rounded-2xl">
+                        <i data-lucide="award" class="w-8 h-8"></i>
+                    </div>
+                </div>
+            </section>
+
+            <!-- EDITEUR DU JOUR -->
+            <section id="day-editor" class="space-y-4">
+                <div class="bg-white rounded-[2.5rem] p-6 shadow-sm space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h4 id="selected-day-label" class="text-xl font-extrabold text-rose-600 italic underline decoration-rose-200 decoration-4">Jour 1</h4>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs font-bold text-slate-400 uppercase">Jeûne :</span>
+                            <button onclick="toggleDayFast()" id="fast-status-btn" class="px-5 py-2 rounded-full text-[10px] font-black tracking-widest transition-all">NON</button>
+                        </div>
+                    </div>
+
+                    <!-- Prières -->
+                    <div class="grid grid-cols-5 gap-2" id="prayer-grid">
+                        <!-- Généré par JS -->
+                    </div>
+
+                    <!-- Coran Section -->
+                    <div class="space-y-3 pt-4 border-t border-gray-50">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2 text-emerald-600">
+                                <i data-lucide="book-open" class="w-4 h-4"></i>
+                                <span class="text-[10px] font-bold uppercase">Coran & Réflexion</span>
+                            </div>
+                            <button onclick="getGeminiQuranInsights()" class="text-[9px] font-black bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full flex items-center gap-1 active:scale-95 transition">
+                                <i data-lucide="sparkles" class="w-3 h-3"></i> EXPLIQUER ✨
+                            </button>
+                        </div>
+                        <input type="text" id="input-surah" placeholder="Quelle sourate aujourd'hui ?" 
+                               class="w-full bg-emerald-50/50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-emerald-100 outline-none placeholder:text-emerald-200">
+                        <div id="quran-ai-response" class="hidden text-[11px] p-4 bg-emerald-50 text-emerald-800 rounded-2xl italic border border-emerald-100 mb-2"></div>
+                        <textarea id="input-quran-notes" rows="2" placeholder="Qu'est-ce que j'en ai compris ? Leçon retenue..." 
+                                  class="w-full bg-emerald-50/50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-emerald-100 outline-none placeholder:text-emerald-200"></textarea>
+                    </div>
+
+                    <!-- Journaling Section -->
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2 text-rose-400">
+                                <i data-lucide="heart" class="w-4 h-4"></i>
+                                <span class="text-[10px] font-bold uppercase">Journal (Mental & Physique)</span>
+                            </div>
+                            <button onclick="getGeminiJournalSupport()" class="text-[9px] font-black bg-rose-100 text-rose-700 px-3 py-1 rounded-full flex items-center gap-1 active:scale-95 transition">
+                                <i data-lucide="sparkles" class="w-3 h-3"></i> SOUTIEN ✨
+                            </button>
+                        </div>
+                        <div id="journal-ai-response" class="hidden text-[11px] p-4 bg-rose-50 text-rose-800 rounded-2xl italic border border-rose-100 mb-2"></div>
+                        <textarea id="input-journal" rows="3" placeholder="Comment je me sens ? Fatigue, motivation, gratitudes..." 
+                                  class="w-full bg-rose-50/50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-rose-100 outline-none placeholder:text-rose-200"></textarea>
+                    </div>
+
+                    <button onclick="saveActiveDay()" class="w-full bg-slate-900 text-white py-5 rounded-[2rem] font-black text-sm tracking-widest shadow-xl active:scale-95 transition-transform">
+                        ENREGISTRER MA JOURNÉE
+                    </button>
+                </div>
+            </section>
+        </div>
+
+        <!-- ONGLET : NUTRITION & RECETTES -->
+        <div id="tab-nutrition" class="hidden p-4 space-y-6">
+            <section class="bg-white rounded-[2.5rem] p-6 shadow-sm space-y-8 text-center">
+                <h3 class="font-bold text-lg text-blue-600 flex items-center justify-center gap-2">
+                    <i data-lucide="utensils"></i> Forme & Énergie
+                </h3>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-blue-50 p-6 rounded-[2rem]">
+                        <i data-lucide="droplet" class="text-blue-500 mx-auto mb-2"></i>
+                        <div id="display-water" class="text-2xl font-black text-blue-900">0.0L</div>
+                        <p class="text-[8px] font-bold text-blue-300 uppercase mt-1">Hydratation</p>
+                        <div class="flex justify-center gap-3 mt-4">
+                            <button onclick="modifyWater(0.25)" class="bg-white w-10 h-10 rounded-full shadow-sm text-blue-500 flex items-center justify-center font-bold">+</button>
+                            <button onclick="modifyWater(-0.25)" class="bg-white w-10 h-10 rounded-full shadow-sm text-slate-300 flex items-center justify-center font-bold">-</button>
+                        </div>
+                    </div>
+                    <div class="bg-orange-50 p-6 rounded-[2rem]">
+                        <i data-lucide="beef" class="text-orange-500 mx-auto mb-2"></i>
+                        <div id="display-protein" class="text-2xl font-black text-orange-900">0g</div>
+                        <div class="flex items-center justify-center gap-1 text-[8px] font-bold text-orange-300 uppercase mt-1">
+                            CIBLE: <input type="number" id="input-prot-goal" onchange="changeProtGoal()" class="w-8 bg-transparent border-none p-0 outline-none text-center font-bold">G
+                        </div>
+                        <button onclick="promptProtein()" class="mt-4 bg-white text-orange-500 px-4 py-2 rounded-full text-[10px] font-black shadow-sm uppercase">Ajouter</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RECETTES SUHOOR AI -->
+            <section class="space-y-4">
+                <div class="flex justify-between items-center px-4">
+                    <h3 class="font-bold text-rose-500 flex items-center gap-2"><i data-lucide="chef-hat" class="w-4 h-4"></i> Idées Suhoor</h3>
+                    <button onclick="getGeminiRecipe()" class="text-[9px] font-black bg-orange-100 text-orange-700 px-4 py-2 rounded-full flex items-center gap-2 active:scale-95 transition">
+                        <i data-lucide="sparkles" class="w-3 h-3"></i> MENU SUR MESURE ✨
+                    </button>
+                </div>
+                
+                <div id="ai-recipe-container" class="hidden px-4 mb-4">
+                    <div id="ai-recipe-content" class="bg-orange-50 p-5 rounded-[2.5rem] border border-orange-100 text-xs text-orange-900 shadow-sm">
+                        <!-- Gemini recipe content -->
+                    </div>
+                </div>
+
+                <div class="flex overflow-x-auto gap-4 px-4 pb-4 no-scrollbar">
+                    <!-- Recette 1 -->
+                    <div class="min-w-[260px] bg-white p-5 rounded-[2rem] shadow-sm border border-rose-50">
+                        <span class="text-3xl">🥣</span>
+                        <h4 class="font-bold mt-3 text-rose-900">Le Sucré : Overnight Oats</h4>
+                        <p class="text-xs text-slate-500 mt-2 leading-relaxed italic">Avoine, lait d'amande, graines de chia, dattes et miel. Prépare-le la veille !</p>
+                    </div>
+                    <!-- Recette 2 -->
+                    <div class="min-w-[260px] bg-white p-5 rounded-[2rem] shadow-sm border border-rose-50">
+                        <span class="text-3xl">🥑</span>
+                        <h4 class="font-bold mt-3 text-rose-900">Le Salé : Avocado Toast</h4>
+                        <p class="text-xs text-slate-500 mt-2 leading-relaxed italic">Pain complet, avocat écrasé, œuf poché ou dur. Protéines et bons gras pour tenir.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ONGLET : DHIKR -->
+        <div id="tab-dhikr" class="hidden p-4 h-[70vh] flex flex-col items-center justify-center text-center">
+            <div class="space-y-10 w-full">
+                <div>
+                    <h3 class="text-rose-400 font-black text-xs uppercase tracking-[0.3em] mb-2">Tasbih Digital</h3>
+                    <div id="display-dhikr" class="text-9xl font-black text-rose-600 tracking-tighter transition-all">0</div>
+                </div>
+                
+                <button onclick="addDhikr()" class="w-56 h-56 bg-rose-500 rounded-full shadow-[0_25px_60px_rgba(244,63,94,0.4)] border-[15px] border-white active:scale-90 transition-all duration-75 flex items-center justify-center mx-auto group">
+                    <span class="text-white font-black text-3xl tracking-widest group-active:opacity-50">CLICK</span>
+                </button>
+
+                <button onclick="resetDhikr()" class="flex flex-col items-center gap-2 mx-auto text-slate-300 active:text-rose-500 transition-colors">
+                    <i data-lucide="rotate-ccw" class="w-6 h-6"></i>
+                    <span class="text-[10px] font-bold uppercase tracking-widest">Réinitialiser</span>
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- NAVIGATION BAR -->
+    <nav id="app-nav" class="hidden fixed bottom-0 left-0 right-0 glass border-t border-rose-50 flex justify-around p-4 pb-10 z-40">
+        <button onclick="switchTab('calendar')" id="nav-calendar" class="nav-btn flex flex-col items-center gap-1 text-slate-300">
+            <i data-lucide="layout-grid"></i>
+            <span class="text-[9px] font-black uppercase tracking-tight">Suivi</span>
+        </button>
+        <button onclick="switchTab('nutrition')" id="nav-nutrition" class="nav-btn flex flex-col items-center gap-1 text-slate-300">
+            <i data-lucide="coffee"></i>
+            <span class="text-[9px] font-black uppercase tracking-tight">Cuisine</span>
+        </button>
+        <button onclick="switchTab('dhikr')" id="nav-dhikr" class="nav-btn flex flex-col items-center gap-1 text-slate-300">
+            <i data-lucide="fingerprint"></i>
+            <span class="text-[9px] font-black uppercase tracking-tight">Dhikr</span>
+        </button>
+    </nav>
+
+    <script>
+        // CONFIGURATION GEMINI API
+        const apiKey = ""; // Environment handles this
+        
+        async function callGemini(prompt) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: "Tu es un compagnon bienveillant pour le Ramadan. Tes réponses doivent être courtes (max 3-4 lignes), encourageantes, spirituelles et en français." }] }
+            };
+
+            for (let i = 0; i < 5; i++) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) throw new Error('API failed');
+                    const result = await response.json();
+                    return result.candidates?.[0]?.content?.parts?.[0]?.text || "Désolé, je n'ai pas pu générer de réponse.";
+                } catch (e) {
+                    await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+                }
+            }
+            return "Une erreur est survenue après plusieurs tentatives.";
+        }
+
+        // AI FEATURES
+        async function getGeminiJournalSupport() {
+            const journalText = document.getElementById('input-journal').value;
+            if (!journalText || journalText.length < 5) {
+                toast("Écris un peu plus dans ton journal d'abord !");
+                return;
+            }
+
+            const display = document.getElementById('journal-ai-response');
+            display.classList.remove('hidden');
+            display.innerText = "Gemini réfléchit... ✨";
+            display.classList.add('shimmer');
+
+            const prompt = `L'utilisateur se sent comme ceci aujourd'hui : "${journalText}". Donne-lui un court message de soutien spirituel et d'encouragement pour son jeûne.`;
+            const response = await callGemini(prompt);
+            
+            display.innerText = response;
+            display.classList.remove('shimmer');
+        }
+
+        async function getGeminiQuranInsights() {
+            const surah = document.getElementById('input-surah').value;
+            if (!surah) {
+                toast("Précise une sourate d'abord !");
+                return;
+            }
+
+            const display = document.getElementById('quran-ai-response');
+            display.classList.remove('hidden');
+            display.innerText = "Exploration de la sourate... ✨";
+            display.classList.add('shimmer');
+
+            const prompt = `L'utilisateur a lu la sourate "${surah}". Donne-lui une brève explication (1-2 phrases) sur le thème principal ou une leçon de cette sourate pour l'aider dans sa réflexion.`;
+            const response = await callGemini(prompt);
+            
+            display.innerText = response;
+            display.classList.remove('shimmer');
+        }
+
+        async function getGeminiRecipe() {
+            const day = getDay(activeDayIdx);
+            const goal = day.protGoal || 60;
+            
+            const container = document.getElementById('ai-recipe-container');
+            const content = document.getElementById('ai-recipe-content');
+            
+            container.classList.remove('hidden');
+            content.innerText = "Génération d'un menu protéiné... ✨";
+            content.classList.add('shimmer');
+
+            const prompt = `Suggère une idée de menu rapide et sain pour le Suhoor (petit-déjeuner du Ramadan) qui aide à atteindre un objectif de ${goal}g de protéines. Inclus les ingrédients principaux.`;
+            const response = await callGemini(prompt);
+            
+            content.innerText = response;
+            content.classList.remove('shimmer');
+        }
+
+        // CONFIGURATION UTILISATEURS
+        const USERS = [
+            { id: 'samia', name: 'Samia', pin: '2025', color: 'bg-rose-100 text-rose-600' },
+            { id: 'enora', name: 'Enora', pin: '0000', color: 'bg-blue-100 text-blue-600' },
+            { id: 'kelly', name: 'Kelly', pin: '1234', color: 'bg-emerald-100 text-emerald-600' },
+            { id: 'cherryl', name: 'Cherryl', pin: '8888', color: 'bg-purple-100 text-purple-600' }
+        ];
+
+        let activeUser = null;
+        let selectedLoginUser = null;
+        let activeDayIdx = 1;
+        let userData = {};
+
+        const PRAYERS = ["Fajr", "Dohr", "Asr", "Magh", "Isha"];
+
+        // INITIALISATION
+        window.onload = () => {
+            lucide.createIcons();
+            renderProfileList();
+            updateHeaderDate();
+
+            const savedUid = sessionStorage.getItem('ramadan_sisters_uid');
+            if (savedUid) {
+                const user = USERS.find(u => u.id === savedUid);
+                if (user) doLogin(user);
+            }
+        };
+
+        function updateHeaderDate() {
+            const opt = { day: 'numeric', month: 'long' };
+            document.getElementById('today-date').innerText = new Date().toLocaleDateString('fr-FR', opt);
+        }
+
+        function renderProfileList() {
+            const grid = document.getElementById('profile-grid');
+            grid.innerHTML = USERS.map(u => `
+                <button onclick="initiateLogin('${u.id}')" class="bg-white p-6 rounded-[2.5rem] shadow-sm flex flex-col items-center gap-3 active:scale-95 transition border border-transparent active:border-rose-100">
+                    <div class="w-16 h-16 rounded-full ${u.color} flex items-center justify-center text-xl font-bold shadow-sm">${u.name.charAt(0)}</div>
+                    <span class="font-bold text-slate-700">${u.name}</span>
+                </button>
+            `).join('');
+        }
+
+        function initiateLogin(uid) {
+            selectedLoginUser = USERS.find(u => u.id === uid);
+            document.getElementById('profile-grid').classList.add('hidden');
+            document.getElementById('pin-pad').classList.remove('hidden');
+            document.getElementById('pin-name').innerText = `Code de ${selectedLoginUser.name}`;
+            clearPin();
+        }
+
+        function backToProfiles() {
+            document.getElementById('profile-grid').classList.remove('hidden');
+            document.getElementById('pin-pad').classList.add('hidden');
+            selectedLoginUser = null;
+        }
+
+        function pressKey(n) {
+            const display = document.getElementById('pin-display');
+            if (display.value.length < 4) display.value += n;
+        }
+
+        function clearPin() {
+            document.getElementById('pin-display').value = "";
+        }
+
+        function validatePin() {
+            const input = document.getElementById('pin-display').value;
+            if (input === selectedLoginUser.pin) {
+                doLogin(selectedLoginUser);
+            } else {
+                alert("Oups ! Code incorrect.");
+                clearPin();
+            }
+        }
+
+        function doLogin(user) {
+            activeUser = user;
+            sessionStorage.setItem('ramadan_sisters_uid', user.id);
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('app-content').classList.remove('hidden');
+            document.getElementById('app-nav').classList.remove('hidden');
+            document.getElementById('welcome-msg').innerText = `Salam, ${user.name} ✨`;
+            
+            loadUserData();
+            renderCalendar();
+            selectDay(1);
+            switchTab('calendar');
+        }
+
+        function logout() {
+            sessionStorage.removeItem('ramadan_sisters_uid');
+            location.reload();
+        }
+
+        function loadUserData() {
+            const key = `rs_master_v3_${activeUser.id}`;
+            const stored = localStorage.getItem(key);
+            userData = stored ? JSON.parse(stored) : {};
+        }
+
+        function saveUserData() {
+            const key = `rs_master_v3_${activeUser.id}`;
+            localStorage.setItem(key, JSON.stringify(userData));
+        }
+
+        function getDay(idx) {
+            if (!userData[idx]) {
+                userData[idx] = {
+                    fasting: false,
+                    prayers: [false, false, false, false, false],
+                    surah: "",
+                    quranNotes: "",
+                    journal: "",
+                    water: 0,
+                    protein: 0,
+                    protGoal: 60,
+                    dhikr: 0
+                };
+            }
+            return userData[idx];
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendar-grid');
+            let totalFasted = 0;
+            let html = "";
+            for (let i = 1; i <= 30; i++) {
+                const day = getDay(i);
+                if (day.fasting) totalFasted++;
+                const cls = `day-btn ${day.fasting ? 'day-fasted' : 'bg-white text-slate-300'} ${activeDayIdx === i ? 'day-selected' : ''}`;
+                html += `<button onclick="selectDay(${i})" class="${cls}">${i}</button>`;
+            }
+            grid.innerHTML = html;
+            document.getElementById('stats-fast-count').innerText = totalFasted;
+        }
+
+        function selectDay(idx) {
+            activeDayIdx = idx;
+            const day = getDay(idx);
+
+            // Hide AI responses on day change
+            document.getElementById('journal-ai-response').classList.add('hidden');
+            document.getElementById('quran-ai-response').classList.add('hidden');
+
+            document.getElementById('selected-day-label').innerText = `Jour ${idx}`;
+            const fBtn = document.getElementById('fast-status-btn');
+            fBtn.innerText = day.fasting ? "OUI" : "NON";
+            fBtn.className = `px-5 py-2 rounded-full text-[10px] font-black tracking-widest transition-all ${day.fasting ? 'bg-rose-500 text-white shadow-md' : 'bg-slate-100 text-slate-400'}`;
+
+            const pGrid = document.getElementById('prayer-grid');
+            pGrid.innerHTML = PRAYERS.map((name, i) => `
+                <button onclick="togglePrayer(${i})" class="flex flex-col items-center gap-1 group">
+                    <div class="w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${day.prayers[i] ? 'bg-rose-500 text-white shadow-sm' : 'bg-slate-50 text-slate-200'}">
+                        <i data-lucide="check" class="w-6 h-6"></i>
+                    </div>
+                    <span class="text-[8px] font-black uppercase text-slate-400 group-active:text-rose-500">${name}</span>
+                </button>
+            `).join('');
+            lucide.createIcons();
+
+            document.getElementById('input-surah').value = day.surah || "";
+            document.getElementById('input-quran-notes').value = day.quranNotes || "";
+            document.getElementById('input-journal').value = day.journal || "";
+
+            syncNutritionUI(day);
+            renderCalendar();
+        }
+
+        function syncNutritionUI(day) {
+            document.getElementById('display-water').innerText = day.water.toFixed(2) + "L";
+            document.getElementById('display-protein').innerText = day.protein + "g";
+            document.getElementById('input-prot-goal').value = day.protGoal || 60;
+            document.getElementById('display-dhikr').innerText = day.dhikr || 0;
+        }
+
+        function toggleDayFast() {
+            const day = getDay(activeDayIdx);
+            day.fasting = !day.fasting;
+            saveUserData();
+            selectDay(activeDayIdx);
+        }
+
+        function togglePrayer(i) {
+            const day = getDay(activeDayIdx);
+            day.prayers[i] = !day.prayers[i];
+            saveUserData();
+            selectDay(activeDayIdx);
+        }
+
+        function saveActiveDay() {
+            const day = getDay(activeDayIdx);
+            day.surah = document.getElementById('input-surah').value;
+            day.quranNotes = document.getElementById('input-quran-notes').value;
+            day.journal = document.getElementById('input-journal').value;
+            saveUserData();
+            toast("C'est enregistré ! ✨");
+        }
+
+        function modifyWater(amt) {
+            const day = getDay(activeDayIdx);
+            day.water = Math.max(0, day.water + amt);
+            saveUserData();
+            syncNutritionUI(day);
+        }
+
+        function changeProtGoal() {
+            const day = getDay(activeDayIdx);
+            day.protGoal = parseInt(document.getElementById('input-prot-goal').value) || 60;
+            saveUserData();
+        }
+
+        function promptProtein() {
+            const amt = prompt("Grammes de protéines à ajouter ?");
+            if (amt) {
+                const day = getDay(activeDayIdx);
+                day.protein += parseInt(amt) || 0;
+                saveUserData();
+                syncNutritionUI(day);
+            }
+        }
+
+        function addDhikr() {
+            const day = getDay(activeDayIdx);
+            day.dhikr++;
+            saveUserData();
+            document.getElementById('display-dhikr').innerText = day.dhikr;
+            if('vibrate' in navigator) navigator.vibrate(50);
+        }
+
+        function resetDhikr() {
+            if(confirm("Réinitialiser le compteur de ce jour ?")) {
+                const day = getDay(activeDayIdx);
+                day.dhikr = 0;
+                saveUserData();
+                document.getElementById('display-dhikr').innerText = 0;
+            }
+        }
+
+        function switchTab(name) {
+            ['calendar', 'nutrition', 'dhikr'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.add('hidden');
+                document.getElementById(`nav-${t}`).classList.remove('text-rose-600');
+                document.getElementById(`nav-${t}`).classList.add('text-slate-300');
+            });
+            document.getElementById(`tab-${name}`).classList.remove('hidden');
+            document.getElementById(`nav-${name}`).classList.remove('text-slate-300');
+            document.getElementById(`nav-${name}`).classList.add('text-rose-600');
+            window.scrollTo(0,0);
+        }
+
+        function toast(m) {
+            const t = document.createElement('div');
+            t.className = "fixed top-12 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-4 rounded-3xl text-xs font-black z-[100] shadow-2xl animate-bounce";
+            t.innerText = m.toUpperCase();
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 2000);
+        }
+    </script>
+</body>
+</html>
