@@ -382,8 +382,11 @@
             document.getElementById('prayer-grid').innerHTML = prayers.map((n, i) => `<button onclick="window.togglePrayer(${i})" class="flex flex-col items-center gap-1 text-center"><div class="w-11 h-11 rounded-2xl flex items-center justify-center ${d.prayers && d.prayers[i] ? 'bg-rose-500 text-white' : 'bg-slate-50 text-slate-200'}"><i data-lucide="check" class="w-6 h-6"></i></div><span class="text-[8px] font-black uppercase text-slate-400">${n}</span></button>`).join('');
             document.getElementById('tarawih-btn').innerText = d.tarawih ? "FAIT ✨" : "PAS ALLÉ";
             document.getElementById('tarawih-btn').className = `px-5 py-2 rounded-full text-[10px] font-black ${d.tarawih ? 'bg-indigo-500 text-white shadow-md' : 'bg-slate-100 text-slate-400'}`;
+            
+            // Objectifs Persos
             document.getElementById('objectives-list').innerHTML = d.objectives?.length > 0 ? d.objectives.map((obj, i) => `<div class="flex items-center justify-between bg-slate-50 p-3 rounded-xl mb-2"><div class="flex items-center gap-3"><button onclick="window.toggleObjective(${i})" class="w-5 h-5 rounded-md border-2 border-rose-200 flex items-center justify-center ${obj.done ? 'bg-rose-500 border-rose-500' : ''}">${obj.done ? '<i data-lucide="check" class="w-3 h-3 text-white"></i>' : ''}</button><span class="text-sm ${obj.done ? 'line-through text-slate-400' : 'text-slate-700 font-medium text-left'}">${obj.text}</span></div><button onclick="window.removeObjective(${i})" class="text-slate-300"><i data-lucide="x" class="w-4 h-4"></i></button></div>`).join('') : '<p class="text-[10px] text-slate-400 italic text-center py-2">Aucun objectif...</p>';
-            document.getElementById('custom-recipes-list').innerHTML = userData.customRecipes?.length > 0 ? userData.customRecipes.map((rec, i) => `<div class="flex items-center justify-between bg-rose-50/50 p-3 rounded-xl mb-2 border border-rose-100"><span class="text-xs font-semibold text-rose-700 text-left">🍴 ${rec}</span><button onclick="window.removeRecipe(${i})" class="text-rose-300"><i data-lucide="trash-2" class="w-3 h-3"></i></button></div>`).join('') : '<p class="text-[10px] text-slate-300 italic text-center">Carnet vide...</p>';
+            
+            document.getElementById('custom-recipes-list').innerHTML = userData.customRecipes?.length > 0 ? userData.customRecipes.map((rec, i) => `<div class="flex items-center justify-between bg-rose-50/50 p-3 rounded-xl mb-2 border border-rose-100"><span class="text-xs font-semibold text-rose-700 text-left">🍴 ${rec}</span><button onclick="window.removeRecipe(${i})" class="text-rose-300"><i data-lucide="trash-2" class="w-3 h-3"></i></button></div>`).join('') : '<p class="text-[10px] text-slate-300 italic text-center text-center">Carnet vide...</p>';
             
             updateWaterUI();
 
@@ -414,7 +417,7 @@
         };
         function showToast(m) {
             const t = document.createElement('div');
-            t.className = "fixed top-12 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-4 rounded-3xl text-xs font-black z-[300] animate-bounce uppercase shadow-2xl";
+            t.className = "fixed top-12 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-4 rounded-3xl text-xs font-black z-[200] animate-bounce uppercase shadow-2xl";
             t.innerText = m; document.body.appendChild(t); setTimeout(() => t.remove(), 2500);
         }
         window.logout = () => { sessionStorage.clear(); location.reload(); };
@@ -444,6 +447,7 @@
 </head>
 <body class="min-h-screen flex flex-col">
 
+    <!-- MODAL RESET -->
     <div id="reset-modal" class="hidden fixed inset-0 z-[400] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
         <div class="bg-white rounded-[2.5rem] p-8 w-full max-w-xs shadow-2xl animate-in zoom-in duration-300 text-center border border-slate-100">
             <h3 class="text-sm font-black mb-2 text-slate-800">Réinitialiser ?</h3>
@@ -455,6 +459,7 @@
         </div>
     </div>
 
+    <!-- LOADING MOON -->
     <div id="loading-moon" class="fixed inset-0 z-[500] bg-white flex flex-col items-center justify-center p-6 text-center">
         <div class="bg-rose-50 w-24 h-24 rounded-full flex items-center justify-center animate-pulse mb-4"><i data-lucide="moon" class="text-rose-500 w-12 h-12"></i></div>
         <p class="text-slate-400 text-sm font-bold" id="error-msg">Préparation du mois béni... ✨</p>
@@ -489,7 +494,7 @@
 
     <!-- MAIN APP CONTENT -->
     <main id="app-content" class="hidden flex-1 pb-40 overflow-y-auto no-scrollbar">
-        <header class="p-6 pt-12 flex justify-between items-center bg-white rounded-b-[3rem] shadow-sm mb-6 border-b border-rose-50 sticky top-0 z-50">
+        <header class="p-6 pt-12 flex justify-between items-center bg-white rounded-b-[3rem] shadow-sm mb-6 border-b border-rose-50 sticky top-0 z-50 text-center">
             <div><h2 id="welcome-msg" class="text-sm font-bold text-slate-800 italic">Salam !</h2><p class="text-[10px] font-bold text-rose-400 uppercase tracking-widest mt-1 italic text-left">Ramadan Companion 🌙</p></div>
             <button onclick="window.logout()" class="p-3 bg-rose-50 rounded-2xl text-rose-500 active:scale-90 transition"><i data-lucide="power" class="w-6 h-6"></i></button>
         </header>
@@ -515,9 +520,10 @@
             </section>
             
             <section class="bg-white rounded-[3rem] p-6 shadow-sm space-y-8 border border-rose-50 text-center">
-                <div class="flex justify-between items-center"><h4 id="day-title" class="text-sm font-black text-rose-600 italic">Jour 1</h4><button onclick="window.toggleFast()" id="fast-btn" class="px-5 py-2 rounded-full text-[10px] font-black tracking-widest transition-all">NON</button></div>
+                <div class="flex justify-between items-center"><h4 id="day-title" class="text-sm font-black text-rose-600 italic text-left">Jour 1</h4><button onclick="window.toggleFast()" id="fast-btn" class="px-5 py-2 rounded-full text-[10px] font-black tracking-widest transition-all">NON</button></div>
                 <div><div class="flex items-center gap-2 mb-3 text-left"><i data-lucide="sun" class="w-4 h-4 text-orange-400"></i><span class="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] text-left">Prières quotidiennes</span></div><div class="grid grid-cols-5 gap-2" id="prayer-grid"></div></div>
 
+                <!-- ESPACES D'ÉCRITURE AGRANDIS -->
                 <div class="pt-6 border-t border-slate-100 bg-indigo-50/20 p-6 rounded-[2.5rem] text-center">
                     <div class="flex justify-between items-center mb-4"><div class="flex items-center gap-3 text-left"><i data-lucide="moon" class="w-10 h-10 text-indigo-500"></i><span class="text-sm font-black uppercase text-indigo-600 tracking-widest italic text-left">Tarawih</span></div><button onclick="window.toggleTarawih()" id="tarawih-btn" class="transition-all"></button></div>
                     <textarea id="input-tarawih-notes" rows="6" placeholder="Ressenti de la prière ce soir ?" class="w-full bg-white border border-indigo-50 rounded-2xl p-5 text-xs outline-none focus:ring-2 focus:ring-indigo-100 journal-box shadow-sm text-left"></textarea>
@@ -527,6 +533,14 @@
                     <input type="text" id="input-surah" placeholder="Sourate lue aujourd'hui ?" class="w-full bg-white border border-emerald-50 rounded-xl p-5 text-xs outline-none mb-3 journal-box shadow-sm text-left">
                     <textarea id="input-quran-notes" rows="6" placeholder="Notes de lecture, un verset marquant..." class="w-full bg-white border border-emerald-50 rounded-2xl p-5 text-xs outline-none journal-box shadow-sm text-left"></textarea>
                 </div>
+
+                <!-- SECTION OBJECTIFS PERSOS (RÉTABLIE) -->
+                <div class="pt-6 border-t border-slate-100 bg-rose-50/20 p-6 rounded-[2.5rem] text-center">
+                    <div class="flex items-center gap-3 mb-4 text-left"><i data-lucide="list-todo" class="w-10 h-10 text-rose-400"></i><span class="text-sm font-black uppercase text-rose-500 tracking-widest italic text-left">Objectifs Persos</span></div>
+                    <div id="objectives-list" class="space-y-2 mb-4 text-left"></div>
+                    <div class="flex gap-2"><input type="text" id="objective-input" placeholder="Ajouter un objectif..." class="flex-1 bg-white border border-rose-50 rounded-xl px-5 py-4 text-xs outline-none text-left"><button onclick="window.addObjective()" class="bg-rose-500 text-white p-4 rounded-xl shadow-md active:scale-95 transition"><i data-lucide="plus" class="w-4 h-4"></i></button></div>
+                </div>
+
                 <div class="pt-6 border-t border-slate-100 bg-rose-50/20 p-6 rounded-[2.5rem] text-center">
                     <div class="flex items-center gap-3 mb-4 text-left"><i data-lucide="pen-tool" class="w-10 h-10 text-rose-400"></i><span class="text-sm font-black uppercase text-rose-500 tracking-widest italic text-left">Journal intime</span></div>
                     <textarea id="input-journal" rows="12" placeholder="Écris ici ton ressenti profond de la journée..." class="w-full bg-white border border-rose-50 rounded-2xl p-5 text-xs outline-none journal-box shadow-sm text-left"></textarea>
@@ -553,7 +567,7 @@
                 <div class="flex gap-2 pt-2"><input type="text" id="recipe-input" placeholder="Idée de repas..." class="flex-1 bg-slate-50 border-none rounded-xl px-5 py-4 text-xs outline-none text-left"><button onclick="window.addManualRecipe()" class="bg-rose-500 text-white p-3 rounded-xl shadow-md active:scale-95 transition"><i data-lucide="plus" class="w-4 h-4"></i></button></div>
             </section>
 
-            <!-- SECTION SUHOOR RETABLIE -->
+            <!-- SECTION SUHOOR (RÉTABLIE) -->
             <section class="space-y-4 text-center pb-8">
                 <h4 class="text-[10px] font-black text-slate-400 px-2 uppercase tracking-[0.2em] text-center">Idées Suhoor des Sisters 🥞</h4>
                 <div class="grid gap-4 text-[11px]">
@@ -592,7 +606,7 @@
         <!-- TAB SALON -->
         <div id="tab-salon" class="hidden p-4 space-y-6 flex flex-col min-h-[70vh] pb-44 text-center animate-in fade-in duration-300">
             <div class="bg-rose-500 p-6 rounded-[2.5rem] text-white shadow-lg mb-4 text-center"><h3 class="text-sm font-black italic">Salon des Sisters 💬</h3><p class="text-[9px] font-bold uppercase opacity-80 mt-1 tracking-widest text-center">Ensemble vers le bien</p></div>
-            <section class="bg-white border border-rose-100 rounded-[2.5rem] p-6 shadow-sm mb-4"><div class="flex items-center gap-3 mb-4 text-left"><div class="bg-rose-500 p-2 rounded-xl text-white"><i data-lucide="users" class="w-4 h-4"></i></div><h4 class="text-[10px] font-black uppercase text-rose-600 tracking-widest italic text-left">Challenge Collectif</h4></div><div id="common-goals-container" class="space-y-3"></div></section>
+            <section class="bg-white border border-rose-100 rounded-[2.5rem] p-6 shadow-sm mb-4 text-center"><div class="flex items-center gap-3 mb-4 text-left"><div class="bg-rose-500 p-2 rounded-xl text-white"><i data-lucide="users" class="w-4 h-4"></i></div><h4 class="text-[10px] font-black uppercase text-rose-600 tracking-widest italic text-left">Challenge Collectif</h4></div><div id="common-goals-container" class="space-y-3"></div></section>
             <div id="salon-messages-container" class="flex-1 overflow-y-auto no-scrollbar px-2 space-y-4 pb-4 border-t border-slate-50 pt-4 text-left"></div>
             <div class="bg-white p-4 rounded-[2rem] shadow-2xl border border-rose-100 flex gap-2 items-center fixed bottom-[100px] left-4 right-4 z-[100]"><input type="text" id="wall-input" placeholder="Un mot doux ? ✨" class="flex-1 bg-slate-50 border-none rounded-xl px-5 py-5 text-xs outline-none text-left"><button onclick="window.postToWall()" class="bg-rose-500 text-white p-4 rounded-xl shadow-md active:scale-95 transition text-center"><i data-lucide="send" class="w-5 h-5"></i></button></div>
         </div>
