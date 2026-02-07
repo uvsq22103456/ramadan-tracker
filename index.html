@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Ramadan Sisters 🌙</title>
@@ -414,7 +414,7 @@
         };
         function showToast(m) {
             const t = document.createElement('div');
-            t.className = "fixed top-12 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-4 rounded-3xl text-xs font-black z-[200] animate-bounce uppercase shadow-2xl";
+            t.className = "fixed top-12 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-4 rounded-3xl text-xs font-black z-[300] animate-bounce uppercase shadow-2xl";
             t.innerText = m; document.body.appendChild(t); setTimeout(() => t.remove(), 2500);
         }
         window.logout = () => { sessionStorage.clear(); location.reload(); };
@@ -422,28 +422,30 @@
     </script>
 
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; position: relative; }
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            -webkit-tap-highlight-color: transparent; 
+            background-color: #FFF9FA;
+            color: #1e293b;
+            overscroll-behavior-y: contain;
+        }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .journal-box { background: #ffffff; border: 1px solid #fee2e2; }
         .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); }
         
-        /* FIX MOBILE : Assure la réactivité des zones de texte */
+        /* FIX POUR ÉCRIRE SUR MOBILE */
         input, textarea { 
-            font-size: 16px !important; /* Minimum pour éviter le blocage iOS */
+            font-size: 16px !important; 
             pointer-events: auto !important;
-            touch-action: manipulation;
-            -webkit-user-select: text !important;
             user-select: text !important;
-            position: relative;
-            z-index: 10 !important;
+            -webkit-user-select: text !important;
         }
-        main { position: relative; z-index: 5; }
     </style>
 </head>
-<body class="bg-[#FFF9FA] text-slate-800">
+<body class="min-h-screen flex flex-col">
 
-    <div id="reset-modal" class="hidden fixed inset-0 z-[300] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-        <div class="bg-white rounded-[2.5rem] p-8 w-full max-w-xs shadow-2xl animate-in zoom-in duration-300 text-center">
+    <div id="reset-modal" class="hidden fixed inset-0 z-[400] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
+        <div class="bg-white rounded-[2.5rem] p-8 w-full max-w-xs shadow-2xl animate-in zoom-in duration-300 text-center border border-slate-100">
             <h3 class="text-sm font-black mb-2 text-slate-800">Réinitialiser ?</h3>
             <p class="text-slate-400 text-xs mb-8">Voulez-vous remettre tous les compteurs Dhikr à zéro ?</p>
             <div class="flex flex-col gap-2">
@@ -453,15 +455,15 @@
         </div>
     </div>
 
-    <div id="loading-moon" class="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center p-6 text-center">
+    <div id="loading-moon" class="fixed inset-0 z-[500] bg-white flex flex-col items-center justify-center p-6 text-center">
         <div class="bg-rose-50 w-24 h-24 rounded-full flex items-center justify-center animate-pulse mb-4"><i data-lucide="moon" class="text-rose-500 w-12 h-12"></i></div>
         <p class="text-slate-400 text-sm font-bold" id="error-msg">Préparation du mois béni... ✨</p>
     </div>
 
-    <!-- AUTH -->
-    <div id="auth-screen" class="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-6 text-center overflow-y-auto">
+    <!-- AUTH SCREEN -->
+    <div id="auth-screen" class="fixed inset-0 z-[200] bg-white flex flex-col items-center justify-center p-6 text-center overflow-y-auto">
         <div class="mb-12 text-center">
-            <h1 class="text-lg font-black text-slate-900 tracking-tight">Ramadan Sisters</h1>
+            <h1 class="text-xl font-black text-slate-900 tracking-tight">Ramadan Sisters</h1>
             <p class="text-slate-400 mt-2 text-[10px] italic px-6 leading-relaxed">Suivons nos progrès durant ce mois béni ✨</p>
         </div>
         <div id="profile-grid" class="grid grid-cols-2 gap-4 w-full max-w-sm px-4"></div>
@@ -485,15 +487,16 @@
         </div>
     </div>
 
-    <main id="app-content" class="hidden min-h-screen pb-32">
-        <header class="p-6 pt-12 flex justify-between items-center bg-white rounded-b-[3rem] shadow-sm mb-6 border-b border-rose-50">
+    <!-- MAIN APP CONTENT -->
+    <main id="app-content" class="hidden flex-1 pb-40 overflow-y-auto no-scrollbar">
+        <header class="p-6 pt-12 flex justify-between items-center bg-white rounded-b-[3rem] shadow-sm mb-6 border-b border-rose-50 sticky top-0 z-50">
             <div><h2 id="welcome-msg" class="text-sm font-bold text-slate-800 italic">Salam !</h2><p class="text-[10px] font-bold text-rose-400 uppercase tracking-widest mt-1 italic text-left">Ramadan Companion 🌙</p></div>
             <button onclick="window.logout()" class="p-3 bg-rose-50 rounded-2xl text-rose-500 active:scale-90 transition"><i data-lucide="power" class="w-6 h-6"></i></button>
         </header>
 
         <!-- TAB CALENDRIER -->
-        <div id="tab-calendar" class="p-4 space-y-6">
-            <section class="bg-white border-2 border-rose-100 rounded-[2.5rem] p-6 shadow-sm animate-in fade-in slide-in-from-top-4 duration-700">
+        <div id="tab-calendar" class="p-4 space-y-6 animate-in fade-in duration-300">
+            <section class="bg-white border-2 border-rose-100 rounded-[2.5rem] p-6 shadow-sm">
                 <div class="flex items-start gap-4">
                     <div class="bg-rose-500 p-3 rounded-2xl shadow-md text-white"><i data-lucide="heart" class="w-5 h-5 fill-current"></i></div>
                     <div class="flex-1 text-left">
@@ -503,7 +506,7 @@
                 </div>
             </section>
 
-            <section class="bg-white rounded-[2.5rem] p-6 shadow-sm text-center">
+            <section class="bg-white rounded-[2.5rem] p-6 shadow-sm text-center border border-rose-50">
                 <div class="grid grid-cols-6 gap-2 mb-6" id="calendar-grid"></div>
                 <div class="bg-rose-500 rounded-3xl p-5 text-white flex items-center justify-between shadow-lg">
                     <div><p class="text-[10px] font-bold uppercase opacity-80 tracking-widest text-left">Ma progression</p><p class="text-xl font-black text-left"><span id="stats-fast-count">0</span> / 30 <span class="text-xs uppercase">jeûnés</span></p></div>
@@ -517,23 +520,23 @@
 
                 <div class="pt-6 border-t border-slate-100 bg-indigo-50/20 p-6 rounded-[2.5rem] text-center">
                     <div class="flex justify-between items-center mb-4"><div class="flex items-center gap-3 text-left"><i data-lucide="moon" class="w-10 h-10 text-indigo-500"></i><span class="text-sm font-black uppercase text-indigo-600 tracking-widest italic text-left">Tarawih</span></div><button onclick="window.toggleTarawih()" id="tarawih-btn" class="transition-all"></button></div>
-                    <textarea id="input-tarawih-notes" rows="2" placeholder="Ressenti de la prière ce soir ?" class="w-full bg-white border-none rounded-2xl p-4 text-xs outline-none focus:ring-2 focus:ring-indigo-100 journal-box shadow-sm text-left"></textarea>
+                    <textarea id="input-tarawih-notes" rows="6" placeholder="Ressenti de la prière ce soir ?" class="w-full bg-white border border-indigo-50 rounded-2xl p-5 text-xs outline-none focus:ring-2 focus:ring-indigo-100 journal-box shadow-sm text-left"></textarea>
                 </div>
                 <div class="pt-6 border-t border-slate-100 bg-emerald-50/20 p-6 rounded-[2.5rem] text-center">
                     <div class="flex items-center gap-3 mb-4 text-left"><i data-lucide="book-open" class="w-10 h-10 text-emerald-500"></i><span class="text-sm font-black uppercase text-emerald-600 tracking-widest italic text-left">Coran</span></div>
-                    <input type="text" id="input-surah" placeholder="Sourate lue aujourd'hui ?" class="w-full bg-white border-none rounded-xl p-4 text-xs outline-none mb-3 journal-box shadow-sm text-left">
-                    <textarea id="input-quran-notes" rows="2" placeholder="Notes de lecture, un verset marquant..." class="w-full bg-white border-none rounded-2xl p-4 text-xs outline-none journal-box shadow-sm text-left"></textarea>
+                    <input type="text" id="input-surah" placeholder="Sourate lue aujourd'hui ?" class="w-full bg-white border border-emerald-50 rounded-xl p-5 text-xs outline-none mb-3 journal-box shadow-sm text-left">
+                    <textarea id="input-quran-notes" rows="6" placeholder="Notes de lecture, un verset marquant..." class="w-full bg-white border border-emerald-50 rounded-2xl p-5 text-xs outline-none journal-box shadow-sm text-left"></textarea>
                 </div>
                 <div class="pt-6 border-t border-slate-100 bg-rose-50/20 p-6 rounded-[2.5rem] text-center">
                     <div class="flex items-center gap-3 mb-4 text-left"><i data-lucide="pen-tool" class="w-10 h-10 text-rose-400"></i><span class="text-sm font-black uppercase text-rose-500 tracking-widest italic text-left">Journal intime</span></div>
-                    <textarea id="input-journal" rows="4" placeholder="Écris ici ton ressenti profond de la journée..." class="w-full bg-white border-none rounded-2xl p-4 text-xs outline-none journal-box shadow-sm text-left"></textarea>
+                    <textarea id="input-journal" rows="12" placeholder="Écris ici ton ressenti profond de la journée..." class="w-full bg-white border border-rose-50 rounded-2xl p-5 text-xs outline-none journal-box shadow-sm text-left"></textarea>
                 </div>
                 <button onclick="window.saveJournal()" class="w-full bg-slate-900 text-white py-6 rounded-[2.5rem] font-black text-[11px] tracking-[0.2em] shadow-xl active:scale-95 transition uppercase text-center">Enregistrer ma journée ✨</button>
             </section>
         </div>
 
         <!-- TAB CUISINE -->
-        <div id="tab-cuisine" class="hidden p-4 space-y-6 text-center">
+        <div id="tab-cuisine" class="hidden p-4 space-y-6 text-center animate-in fade-in duration-300">
             <section class="bg-white rounded-[2.5rem] p-8 shadow-sm border border-blue-50 text-center">
                 <div class="flex items-center justify-center gap-2 text-blue-500 mb-6"><i data-lucide="droplet" class="w-6 h-6 animate-bounce"></i><h3 class="text-[10px] font-black uppercase tracking-widest">Hydratation</h3></div>
                 <div class="text-3xl font-black text-blue-600 mb-2"><span id="display-water-val">0.0</span><span class="text-lg ml-1 opacity-50 text-blue-400">L</span></div>
@@ -544,23 +547,58 @@
                 </div>
             </section>
             
-            <section class="bg-white rounded-[2.5rem] p-6 shadow-sm space-y-4 border border-rose-50">
+            <section class="bg-white rounded-[2.5rem] p-6 shadow-sm space-y-4 border border-rose-50 text-center">
                 <h4 class="text-[9px] font-black text-rose-500 uppercase tracking-[0.2em] italic">Mon Carnet 📒</h4>
                 <div id="custom-recipes-list" class="space-y-2 text-center"></div>
-                <div class="flex gap-2 pt-2"><input type="text" id="recipe-input" placeholder="Idée de repas..." class="flex-1 bg-slate-50 border-none rounded-xl px-4 py-3 text-xs outline-none text-left"><button onclick="window.addManualRecipe()" class="bg-rose-500 text-white p-3 rounded-xl shadow-md active:scale-95 transition"><i data-lucide="plus" class="w-4 h-4"></i></button></div>
+                <div class="flex gap-2 pt-2"><input type="text" id="recipe-input" placeholder="Idée de repas..." class="flex-1 bg-slate-50 border-none rounded-xl px-5 py-4 text-xs outline-none text-left"><button onclick="window.addManualRecipe()" class="bg-rose-500 text-white p-3 rounded-xl shadow-md active:scale-95 transition"><i data-lucide="plus" class="w-4 h-4"></i></button></div>
+            </section>
+
+            <!-- SECTION SUHOOR RETABLIE -->
+            <section class="space-y-4 text-center pb-8">
+                <h4 class="text-[10px] font-black text-slate-400 px-2 uppercase tracking-[0.2em] text-center">Idées Suhoor des Sisters 🥞</h4>
+                <div class="grid gap-4 text-[11px]">
+                    <div class="bg-white p-5 rounded-3xl border border-rose-50 flex items-center gap-4 shadow-sm text-left">
+                        <span class="text-2xl">🥣</span>
+                        <div>
+                            <p class="font-bold text-rose-900 italic">Overnight Oats Chia</p>
+                            <p class="text-slate-400 leading-tight">Avoine, chia, lait et fruits. Préparé la veille.</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-5 rounded-3xl border border-rose-50 flex items-center gap-4 shadow-sm text-left">
+                        <span class="text-2xl">🍎</span>
+                        <div>
+                            <p class="font-bold text-rose-900 italic">Porridge Pommes Miel</p>
+                            <p class="text-slate-400 leading-tight">Avoine chaud, pommes caramélisées et cannelle.</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-5 rounded-3xl border border-rose-50 flex items-center gap-4 shadow-sm text-left">
+                        <span class="text-2xl">🥞</span>
+                        <div>
+                            <p class="font-bold text-rose-900 italic">Pancakes Banane</p>
+                            <p class="text-slate-400 leading-tight">Bananes écrasées, œufs, un peu de miel.</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-5 rounded-3xl border border-rose-50 flex items-center gap-4 shadow-sm text-left">
+                        <span class="text-2xl">🍳</span>
+                        <div>
+                            <p class="font-bold text-rose-900 italic">Oeufs & Toast</p>
+                            <p class="text-slate-400 leading-tight">Oeufs pochés ou brouillés sur pain complet grillé.</p>
+                        </div>
+                    </div>
+                </div>
             </section>
         </div>
 
         <!-- TAB SALON -->
-        <div id="tab-salon" class="hidden p-4 space-y-6 flex flex-col min-h-[70vh] pb-44 text-center">
+        <div id="tab-salon" class="hidden p-4 space-y-6 flex flex-col min-h-[70vh] pb-44 text-center animate-in fade-in duration-300">
             <div class="bg-rose-500 p-6 rounded-[2.5rem] text-white shadow-lg mb-4 text-center"><h3 class="text-sm font-black italic">Salon des Sisters 💬</h3><p class="text-[9px] font-bold uppercase opacity-80 mt-1 tracking-widest text-center">Ensemble vers le bien</p></div>
             <section class="bg-white border border-rose-100 rounded-[2.5rem] p-6 shadow-sm mb-4"><div class="flex items-center gap-3 mb-4 text-left"><div class="bg-rose-500 p-2 rounded-xl text-white"><i data-lucide="users" class="w-4 h-4"></i></div><h4 class="text-[10px] font-black uppercase text-rose-600 tracking-widest italic text-left">Challenge Collectif</h4></div><div id="common-goals-container" class="space-y-3"></div></section>
             <div id="salon-messages-container" class="flex-1 overflow-y-auto no-scrollbar px-2 space-y-4 pb-4 border-t border-slate-50 pt-4 text-left"></div>
-            <div class="bg-white p-4 rounded-[2rem] shadow-2xl border border-rose-100 flex gap-2 items-center fixed bottom-[100px] left-4 right-4 z-30"><input type="text" id="wall-input" placeholder="Un mot doux ? ✨" class="flex-1 bg-slate-50 border-none rounded-xl px-4 py-3 text-xs outline-none text-left"><button onclick="window.postToWall()" class="bg-rose-500 text-white p-3 rounded-xl shadow-md active:scale-95 transition text-center"><i data-lucide="send" class="w-5 h-5"></i></button></div>
+            <div class="bg-white p-4 rounded-[2rem] shadow-2xl border border-rose-100 flex gap-2 items-center fixed bottom-[100px] left-4 right-4 z-[100]"><input type="text" id="wall-input" placeholder="Un mot doux ? ✨" class="flex-1 bg-slate-50 border-none rounded-xl px-5 py-5 text-xs outline-none text-left"><button onclick="window.postToWall()" class="bg-rose-500 text-white p-4 rounded-xl shadow-md active:scale-95 transition text-center"><i data-lucide="send" class="w-5 h-5"></i></button></div>
         </div>
 
         <!-- TAB QUIZ -->
-        <div id="tab-quiz" class="hidden p-4 space-y-6 flex flex-col h-[70vh] items-center justify-center text-center">
+        <div id="tab-quiz" class="hidden p-4 space-y-6 flex flex-col h-[70vh] items-center justify-center text-center animate-in fade-in duration-300">
             <div id="quiz-intro" class="bg-white p-8 rounded-[2.5rem] text-center shadow-sm w-full border border-yellow-50 overflow-y-auto max-h-full">
                 <div class="bg-yellow-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-yellow-500 text-2xl">🏆</div>
                 <h3 class="text-sm font-black text-slate-800 mb-2 italic">Challenge des Sisters</h3>
@@ -586,19 +624,19 @@
         </div>
 
         <!-- TAB DHIKR -->
-        <div id="tab-dhikr" class="hidden p-4 space-y-6 flex flex-col items-center text-center">
+        <div id="tab-dhikr" class="hidden p-4 space-y-6 flex flex-col items-center text-center animate-in fade-in duration-300">
             <h3 class="text-sm font-black text-rose-600 italic mt-8 mb-4 text-center">Mon Tasbih ✨</h3>
             <div class="grid grid-cols-2 gap-4 w-full px-4 text-center">
                 <button onclick="window.addDhikr('sub')" class="bg-white p-5 rounded-[2rem] border border-rose-50 shadow-sm active:scale-95 transition-all text-center"><p class="text-base font-black text-rose-600 mb-1 text-center">Subhanallah</p><p class="text-[8px] text-slate-400 uppercase font-black tracking-widest mb-3 text-center">Gloire à Allah</p><div class="text-3xl font-black text-slate-800 text-center" id="count-sub">0</div></button>
                 <button onclick="window.addDhikr('alh')" class="bg-white p-5 rounded-[2rem] border border-rose-50 shadow-sm active:scale-95 transition-all text-center"><p class="text-base font-black text-rose-600 mb-1 text-center">Alhamdulillah</p><p class="text-[8px] text-slate-400 uppercase font-black tracking-widest mb-3 text-center">Louange à Allah</p><div class="text-3xl font-black text-slate-800 text-center" id="count-alh">0</div></button>
-                <button onclick="window.addDhikr('ast')" class="bg-white p-5 rounded-[2rem] border border-rose-50 shadow-sm active:scale-95 transition-all text-center"><p class="text-base font-black text-rose-600 mb-1 text-center">Astaghfirullah</p><p class="text-[8px] text-slate-400 uppercase font-black tracking-widest mb-3 text-center">Pardon</p><div class="text-3xl font-black text-slate-800 text-center" id="count-ast">0</div></button>
+                <button onclick="window.addDhikr('ast')" class="bg-white p-5 rounded-[2rem] border border-rose-50 shadow-sm active:scale-95 transition-all text-center"><p class="text-lg font-black text-rose-600 mb-1 text-center">Astaghfirullah</p><p class="text-[8px] text-slate-400 uppercase font-black tracking-widest mb-3 text-center">Pardon</p><div class="text-3xl font-black text-slate-800 text-center" id="count-ast">0</div></button>
                 <button onclick="window.addDhikr('akb')" class="bg-white p-5 rounded-[2rem] border border-rose-50 shadow-sm active:scale-95 transition-all text-center"><p class="text-base font-black text-rose-600 mb-1 text-center">Allahu Akbar</p><p class="text-[8px] text-slate-400 uppercase font-black tracking-widest mb-3 text-center">Plus Grand</p><div class="text-3xl font-black text-slate-800 text-center" id="count-akb">0</div></button>
             </div>
-            <button onclick="window.openResetModal()" class="mt-8 text-slate-300 font-bold text-[10px] uppercase tracking-widest flex items-center gap-2 bg-white px-6 py-3 rounded-full shadow-sm mx-auto text-center"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> Réinitialiser</button>
+            <button onclick="window.openResetModal()" class="mt-8 text-slate-300 font-bold text-[10px] uppercase tracking-widest flex items-center gap-2 bg-white px-6 py-3 rounded-full shadow-sm mx-auto text-center border border-slate-100"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> Réinitialiser</button>
         </div>
 
-        <!-- TAB SPIRITUEL -->
-        <div id="tab-spiritual" class="hidden p-4 space-y-6 pb-12 text-center">
+        <!-- TAB CŒUR -->
+        <div id="tab-spiritual" class="hidden p-4 space-y-6 pb-12 text-center animate-in fade-in duration-300">
             <section class="bg-white rounded-[2.5rem] p-6 shadow-sm border border-rose-50 text-center">
                 <h3 class="text-sm font-black text-rose-600 italic mb-4 text-center">Mon État d'Esprit ✨</h3>
                 <div class="grid grid-cols-3 gap-2 text-center">
@@ -622,8 +660,8 @@
         </div>
     </main>
 
-    <!-- NAVIGATION -->
-    <nav id="app-nav" class="hidden fixed bottom-0 left-0 right-0 glass border-t flex justify-around p-4 pb-12 z-40 overflow-x-auto no-scrollbar text-center">
+    <!-- NAVIGATION BAR -->
+    <nav id="app-nav" class="hidden fixed bottom-0 left-0 right-0 glass border-t flex justify-around p-4 pb-12 z-[150] overflow-x-auto no-scrollbar text-center">
         <button onclick="window.switchTab('calendar')" id="nav-calendar" class="flex flex-col items-center gap-1 text-rose-600 min-w-[50px] text-center"><i data-lucide="calendar"></i><span class="text-[8px] font-black uppercase tracking-tight text-center">Suivi</span></button>
         <button onclick="window.switchTab('salon')" id="nav-salon" class="flex flex-col items-center gap-1 text-slate-300 min-w-[50px] text-center"><i data-lucide="message-circle"></i><span class="text-[8px] font-black uppercase tracking-tight text-center">Salon</span></button>
         <button onclick="window.switchTab('quiz')" id="nav-quiz" class="flex flex-col items-center gap-1 text-slate-300 min-w-[50px] text-center"><i data-lucide="trophy"></i><span class="text-[8px] font-black uppercase tracking-tight text-center">Quiz</span></button>
@@ -635,3 +673,4 @@
     <script>lucide.createIcons();</script>
 </body>
 </html>
+
