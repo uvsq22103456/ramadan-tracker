@@ -29,6 +29,9 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
+        
+        // J'ai remis v4 pour que tu retrouves tes messages précédents !
+        // Si tu veux tout effacer, remplace 'v4' par 'v5'
         const appId = 'ramadan-sisters-final-app-v4'; 
 
         window.db = db;
@@ -366,17 +369,17 @@
                 else if (activeSalonRoom === 'gratitude') {
                     html += `<div class="mb-6 bg-white p-4 rounded-[2rem] border border-rose-100 shadow-sm text-center">
                         <p class="text-xs font-bold text-slate-600 mb-2">Partage ton bonheur ✨</p>
-                        <div class="flex items-center gap-2 bg-slate-50 rounded-xl px-3 border border-slate-100">
+                        <div class="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
                             <span class="text-[10px] font-black text-emerald-500 uppercase whitespace-nowrap">Alhamdulillah pour</span>
-                            <input type="text" id="gratitude-input" placeholder="..." class="flex-1 bg-transparent py-4 text-xs outline-none text-slate-700 font-medium">
-                            <button onclick="window.sendGratitude()" class="bg-emerald-500 text-white p-2 rounded-lg shadow-sm"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                            <input type="text" id="gratitude-input" placeholder="..." class="flex-1 bg-transparent text-xs outline-none text-slate-700 font-medium">
+                            <button onclick="window.sendGratitude()" class="bg-emerald-500 text-white w-8 h-8 rounded-lg flex items-center justify-center shadow-sm hover:scale-105 transition"><i data-lucide="plus" class="w-4 h-4"></i></button>
                         </div>
                     </div>
                     <div class="space-y-3 pb-24">`;
                     html += gratitudeMessages.map(g => `
                         <div class="bg-white p-4 rounded-2xl border-l-4 border-emerald-400 shadow-sm flex flex-col items-start gap-1 animate-in zoom-in duration-300">
                             <div class="flex justify-between w-full"><span class="text-[9px] font-black uppercase text-emerald-500 bg-emerald-50 px-2 py-1 rounded-md">Alhamdulillah</span><span class="text-[8px] text-slate-300 font-bold">${g.authorName}</span></div>
-                            <p class="text-xs font-medium text-slate-700 italic">"... ${g.text.replace('Alhamdulillah pour ', '')}"</p>
+                            <p class="text-xs font-medium text-slate-700 italic">"${g.text.startsWith('Alhamdulillah pour ') ? g.text.replace('Alhamdulillah pour ', '') : g.text}"</p>
                         </div>
                     `).join('');
                     html += `</div>`;
@@ -386,7 +389,7 @@
                         <div class="absolute -top-2 -right-2 text-4xl opacity-20">🤲</div>
                         <p class="text-xs font-bold text-slate-600 mb-2 italic">"Invoquez-Moi, Je vous exaucerai" 💖</p>
                         <div class="flex gap-2 relative z-10">
-                            <input type="text" id="dua-input" placeholder="Qu'Allah nous accorde..." class="flex-1 bg-white rounded-xl px-4 py-3 text-xs outline-none shadow-sm">
+                            <input type="text" id="dua-input" placeholder="Une dua importante pour moi..." class="flex-1 bg-white rounded-xl px-4 py-3 text-xs outline-none shadow-sm">
                             <button onclick="window.sendDua()" class="bg-indigo-400 text-white p-3 rounded-xl shadow-md"><i data-lucide="send" class="w-4 h-4"></i></button>
                         </div>
                     </div>
@@ -466,7 +469,6 @@
             const input = document.getElementById('gratitude-input');
             const msg = input.value.trim();
             if(!msg) return;
-            // AJOUT AUTOMATIQUE DU TEXTE
             const finalMsg = "Alhamdulillah pour " + msg;
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'salon_gratitude'), { text: finalMsg, authorId: currentUser.id, authorName: currentUser.name, timestamp: Date.now() });
             input.value = "";
@@ -857,7 +859,7 @@
                     <div class="flex items-center gap-3 mb-4 text-left"><i data-lucide="pen-tool" class="w-10 h-10 text-rose-400"></i><span class="text-xs font-black uppercase text-rose-500 tracking-widest italic text-left">Journal intime</span></div>
                     <textarea id="input-journal" rows="12" placeholder="Écris ici ton ressenti profond de la journée..." class="w-full bg-white border border-rose-50 rounded-2xl p-5 text-xs outline-none journal-box shadow-sm text-left"></textarea>
                 </div>
-                <button onclick="window.saveJournal()" class="w-full bg-slate-900 text-white py-6 rounded-[2.5rem] font-black text-[10px] tracking-[0.2em] shadow-xl active:scale-95 transition uppercase text-center">Enregistrer ma journée ✨</button>
+                <button onclick="window.saveJournal()" class="w-full bg-slate-900 text-white py-6 rounded-[2.5rem] font-black text-[11px] tracking-[0.2em] shadow-xl active:scale-95 transition uppercase text-center">Enregistrer ma journée ✨</button>
             </section>
         </div>
 
