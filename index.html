@@ -12,7 +12,7 @@
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot, updateDoc, arrayUnion, arrayRemove, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot, updateDoc, arrayUnion, arrayRemove, increment, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         // --- CONFIGURATION FIREBASE ---
@@ -30,9 +30,8 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        // J'ai remis v4 pour que tu retrouves tes messages précédents !
-        // Si tu veux tout effacer, remplace 'v4' par 'v5'
-        const appId = 'ramadan-sisters-final-app-v4'; 
+        // J'ai mis v5 pour que les changements de structure soient propres
+        const appId = 'ramadan-sisters-final-app-v5'; 
 
         window.db = db;
         window.doc = doc;
@@ -40,6 +39,7 @@
         window.getDoc = getDoc;
         window.collection = collection;
         window.addDoc = addDoc;
+        window.deleteDoc = deleteDoc;
         window.onSnapshot = onSnapshot;
         window.updateDoc = updateDoc;
         window.arrayUnion = arrayUnion;
@@ -284,6 +284,22 @@
             renderSalonContent();
         };
 
+        // --- SUPPRESSION ---
+        window.deleteSalonItem = async (collectionName, id) => {
+            if(!confirm("Veux-tu vraiment supprimer ce message ?")) return;
+            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id));
+        };
+
+        window.resetNameExpl = async (uid) => {
+            if(!confirm("Veux-tu modifier/supprimer ton explication ?")) return;
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'salon_names', `day_${activeDayIdx}`);
+            // On utilise updateDoc avec deleteField (mais ici setDoc avec merge et le champ à delete est plus complexe en vanilla simple)
+            // Solution simple : remplacer par null ou un objet vide, le code de rendu gère ça.
+            // Mieux : on réécrit l'objet sans la clé de l'user.
+            // Pour faire simple ici : on met un texte vide qui sera considéré comme "pas fait".
+            await setDoc(docRef, { [uid]: null }, { merge: true });
+        };
+
         window.renderSalonContent = () => {
             const container = document.getElementById('salon-content-area');
             if(!container) return;
@@ -376,12 +392,20 @@
                         </div>
                     </div>
                     <div class="space-y-3 pb-24">`;
-                    html += gratitudeMessages.map(g => `
-                        <div class="bg-white p-4 rounded-2xl border-l-4 border-emerald-400 shadow-sm flex flex-col items-start gap-1 animate-in zoom-in duration-300">
-                            <div class="flex justify-between w-full"><span class="text-[9px] font-black uppercase text-emerald-500 bg-emerald-50 px-2 py-1 rounded-md">Alhamdulillah</span><span class="text-[8px] text-slate-300 font-bold">${g.authorName}</span></div>
-                            <p class="text-xs font-medium text-slate-700 italic">"${g.text.startsWith('Alhamdulillah pour ') ? g.text.replace('Alhamdulillah pour ', '') : g.text}"</p>
+                    html += gratitudeMessages.map(g => {
+                        const isMe = g.authorId === currentUser?.id;
+                        return `
+                        <div class="bg-white p-4 rounded-2xl border-l-4 border-emerald-400 shadow-sm flex flex-col items-start gap-1 animate-in zoom-in duration-300 relative group">
+                            <div class="flex justify-between w-full">
+                                <span class="text-[9px] font-black uppercase text-emerald-500 bg-emerald-50 px-2 py-1 rounded-md">Alhamdulillah</span>
+                                <div class="flex gap-2">
+                                    <span class="text-[8px] text-slate-300 font-bold">${g.authorName}</span>
+                                    ${isMe ? `<button onclick="window.deleteSalonItem('salon_gratitude', '${g.id}')" class="text-rose-300"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` : ''}
+                                </div>
+                            </div>
+                            <p class="text-xs font-medium text-slate-700 italic">"${g.text}"</p>
                         </div>
-                    `).join('');
+                    `}).join('');
                     html += `</div>`;
                 }
                 else if (activeSalonRoom === 'duas') {
@@ -396,10 +420,14 @@
                     <div class="space-y-4 pb-24">`;
                     html += duasList.map(d => {
                         const hasPrayed = d.prayers && d.prayers.includes(currentUser?.id);
+                        const isMe = d.authorId === currentUser?.id;
                         const count = d.prayers ? d.prayers.length : 0;
                         return `
                         <div class="bg-white p-5 rounded-[2rem] border border-indigo-50 shadow-sm relative animate-in slide-in-from-bottom-3">
-                            <span class="absolute top-4 right-4 text-[8px] font-black text-slate-300 uppercase flex items-center gap-1">${d.authorName} 🌸</span>
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-[8px] font-black text-slate-300 uppercase flex items-center gap-1">${d.authorName} 🌸</span>
+                                ${isMe ? `<button onclick="window.deleteSalonItem('salon_duas', '${d.id}')" class="text-rose-300"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` : ''}
+                            </div>
                             <div class="mb-4 pr-6"><p class="text-xs text-slate-700 leading-relaxed font-medium">"${d.text}"</p></div>
                             <div class="flex items-center justify-between border-t border-slate-50 pt-3">
                                 <button onclick="window.prayFor('${d.id}')" class="flex items-center gap-2 px-4 py-2 rounded-full text-[9px] font-black uppercase transition-all ${hasPrayed ? 'bg-rose-100 text-rose-500' : 'bg-slate-50 text-slate-400'}">
@@ -434,7 +462,11 @@
                                  <div class="w-10 h-10 rounded-full ${u.color} flex items-center justify-center font-bold text-sm border-2 border-white shadow-sm">${u.name.charAt(0)}</div>
                             </div>
                             ${userExpl ? 
-                                `<div class="bg-slate-50 p-4 rounded-2xl text-xs text-slate-700 leading-relaxed border border-slate-100 whitespace-pre-line">${userExpl.text}</div><div class="mt-2 text-right"><span class="text-[8px] font-bold text-emerald-500 uppercase tracking-widest">Validé ✨</span></div>`
+                                `<div class="bg-slate-50 p-4 rounded-2xl text-xs text-slate-700 leading-relaxed border border-slate-100 whitespace-pre-line">${userExpl.text}</div>
+                                <div class="mt-2 flex justify-between items-center">
+                                    <span class="text-[8px] font-bold text-emerald-500 uppercase tracking-widest">Validé ✨</span>
+                                    ${isMe ? `<button onclick="window.resetNameExpl('${u.id}')" class="text-[8px] font-bold text-amber-500 uppercase flex items-center gap-1 border border-amber-100 px-2 py-1 rounded-lg bg-amber-50"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> Modifier</button>` : ''}
+                                </div>`
                                 :
                                 (isMe ? 
                                     `<div class="mt-2"><p class="text-[10px] text-rose-500 font-bold mb-2 uppercase">C'est ton tour ! Que signifie ce nom ?</p><textarea id="name-expl-${u.id}" rows="4" placeholder="Partage ta science..." class="w-full bg-slate-50 rounded-2xl p-3 text-xs outline-none mb-2 border border-slate-100"></textarea><button onclick="window.submitNameExpl('${u.id}')" class="w-full bg-slate-900 text-white py-3 rounded-xl font-black text-[10px] uppercase shadow-md">Publier ma leçon</button></div>`
@@ -859,7 +891,7 @@
                     <div class="flex items-center gap-3 mb-4 text-left"><i data-lucide="pen-tool" class="w-10 h-10 text-rose-400"></i><span class="text-xs font-black uppercase text-rose-500 tracking-widest italic text-left">Journal intime</span></div>
                     <textarea id="input-journal" rows="12" placeholder="Écris ici ton ressenti profond de la journée..." class="w-full bg-white border border-rose-50 rounded-2xl p-5 text-xs outline-none journal-box shadow-sm text-left"></textarea>
                 </div>
-                <button onclick="window.saveJournal()" class="w-full bg-slate-900 text-white py-6 rounded-[2.5rem] font-black text-[11px] tracking-[0.2em] shadow-xl active:scale-95 transition uppercase text-center">Enregistrer ma journée ✨</button>
+                <button onclick="window.saveJournal()" class="w-full bg-slate-900 text-white py-6 rounded-[2.5rem] font-black text-[10px] tracking-[0.2em] shadow-xl active:scale-95 transition uppercase text-center">Enregistrer ma journée ✨</button>
             </section>
         </div>
 
