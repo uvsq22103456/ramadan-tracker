@@ -706,6 +706,34 @@
             window.clearPin();
         };
 
+        // --- NOUVELLES FONCTIONS (CORAN & TARAWIH) ---
+        window.addQuranReading = async () => {
+            const surah = document.getElementById('input-surah-new').value;
+            const start = document.getElementById('input-quran-start').value;
+            const end = document.getElementById('input-quran-end').value;
+            if(!surah || !start) { showToast("Remplis la Sourate et le début !"); return; }
+            
+            if(!userData[activeDayIdx].readingLogs) userData[activeDayIdx].readingLogs = [];
+            userData[activeDayIdx].readingLogs.push({ surah, start, end, timestamp: Date.now() });
+            
+            document.getElementById('input-surah-new').value = "";
+            document.getElementById('input-quran-start').value = "";
+            document.getElementById('input-quran-end').value = "";
+            await pushData(); refreshUI(); showToast("Lecture ajoutée 📖");
+        };
+
+        window.removeQuranReading = async (index) => {
+            if(!confirm("Supprimer cette lecture ?")) return;
+            userData[activeDayIdx].readingLogs.splice(index, 1);
+            await pushData(); refreshUI();
+        };
+
+        window.saveTarawihStop = async () => {
+            userData[activeDayIdx].tarawihStop = document.getElementById('input-tarawih-stop').value;
+            await pushData();
+        };
+        // ---------------------------------------------
+        
         function refreshUI() {
             const d = userData[activeDayIdx]; if(!d) return;
             let fasted = 0; Object.values(userData).forEach(x => { if(x && typeof x === 'object' && x.fasting) fasted++; });
@@ -794,7 +822,9 @@
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
-
+<datalist id="surah-list">
+        <option value="Al-Fatiha"><option value="Al-Baqarah"><option value="Al-Imran"><option value="An-Nisa"><option value="Al-Ma'idah"><option value="Al-An'am"><option value="Al-A'raf"><option value="Al-Anfal"><option value="At-Tawbah"><option value="Yunus"><option value="Hud"><option value="Yusuf"><option value="Ar-Ra'd"><option value="Ibrahim"><option value="Al-Hijr"><option value="An-Nahl"><option value="Al-Isra"><option value="Al-Kahf"><option value="Maryam"><option value="Ta-Ha"><option value="Al-Anbiya"><option value="Al-Hajj"><option value="Al-Mu'minun"><option value="An-Nur"><option value="Al-Furqan"><option value="Ash-Shu'ara"><option value="An-Naml"><option value="Al-Qasas"><option value="Al-Ankabut"><option value="Ar-Rum"><option value="Luqman"><option value="As-Sajdah"><option value="Al-Ahzab"><option value="Saba"><option value="Fatir"><option value="Ya-Sin"><option value="As-Saffat"><option value="Sad"><option value="Az-Zumar"><option value="Ghafir"><option value="Fussilat"><option value="Ash-Shura"><option value="Az-Zukhruf"><option value="Ad-Dukhan"><option value="Al-Jathiyah"><option value="Al-Ahqaf"><option value="Muhammad"><option value="Al-Fath"><option value="Al-Hujurat"><option value="Qaf"><option value="Ad-Dhariyat"><option value="At-Tur"><option value="An-Najm"><option value="Al-Qamar"><option value="Ar-Rahman"><option value="Al-Waqi'ah"><option value="Al-Hadid"><option value="Al-Mujadila"><option value="Al-Hashr"><option value="Al-Mumtahanah"><option value="As-Saff"><option value="Al-Jumu'ah"><option value="Al-Munafiqun"><option value="At-Taghabun"><option value="At-Talaq"><option value="At-Tahrim"><option value="Al-Mulk"><option value="Al-Qalam"><option value="Al-Haqqah"><option value="Al-Ma'arij"><option value="Nuh"><option value="Al-Jinn"><option value="Al-Muzzammil"><option value="Al-Muddathir"><option value="Al-Qiyamah"><option value="Al-Insan"><option value="Al-Mursalat"><option value="An-Naba"><option value="An-Nazi'at"><option value="Abasa"><option value="At-Takwir"><option value="Al-Infitar"><option value="Al-Mutaffifin"><option value="Al-Inshiqaq"><option value="Al-Buruj"><option value="At-Tariq"><option value="Al-A'la"><option value="Al-Ghashiyah"><option value="Al-Fajr"><option value="Al-Balad"><option value="Ash-Shams"><option value="Al-Layl"><option value="Ad-Duha"><option value="Ash-Sharh"><option value="At-Tin"><option value="Al-Alaq"><option value="Al-Qadr"><option value="Al-Bayyinah"><option value="Az-Zalzalah"><option value="Al-Adiyat"><option value="Al-Qari'ah"><option value="At-Takathur"><option value="Al-Asr"><option value="Al-Humazah"><option value="Al-Fil"><option value="Quraysh"><option value="Al-Ma'un"><option value="Al-Kawthar"><option value="Al-Kafirun"><option value="An-Nasr"><option value="Al-Masad"><option value="Al-Ikhlas"><option value="Al-Falaq"><option value="An-Nas">
+    </datalist>
     <div id="reset-modal" class="hidden fixed inset-0 z-[400] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
         <div class="bg-white rounded-[2.5rem] p-8 w-full max-w-xs shadow-2xl animate-in zoom-in duration-300 text-center border border-slate-100">
             <h3 class="text-sm font-black mb-2 text-slate-800">Réinitialiser ?</h3>
@@ -872,13 +902,48 @@
                 <div><div class="flex items-center gap-2 mb-3 text-left"><i data-lucide="sun" class="w-4 h-4 text-orange-400"></i><span class="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] text-left">Prières quotidiennes</span></div><div class="grid grid-cols-5 gap-2" id="prayer-grid"></div></div>
 
                 <div class="pt-6 border-t border-slate-100 bg-indigo-50/20 p-6 rounded-[2.5rem] text-center">
-                    <div class="flex justify-between items-center mb-4"><div class="flex items-center gap-3 text-left"><i data-lucide="moon" class="w-10 h-10 text-indigo-500"></i><span class="text-xs font-black uppercase text-indigo-600 tracking-widest italic text-left">Tarawih</span></div><button onclick="window.toggleTarawih()" id="tarawih-btn" class="transition-all"></button></div>
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex items-center gap-3 text-left">
+                            <i data-lucide="moon" class="w-10 h-10 text-indigo-500"></i>
+                            <span class="text-xs font-black uppercase text-indigo-600 tracking-widest italic text-left">Tarawih</span>
+                        </div>
+                        <button onclick="window.toggleTarawih()" id="tarawih-btn" class="transition-all"></button>
+                    </div>
+                    <div class="flex items-center gap-2 mb-2 bg-white rounded-xl px-3 border border-indigo-50 shadow-sm">
+                        <span class="text-[9px] font-bold text-indigo-300 uppercase whitespace-nowrap">Arrêt mosquée :</span>
+                        <input type="text" id="input-tarawih-stop" onchange="window.saveTarawihStop()" value="${d.tarawihStop || ''}" placeholder="ex: Sourate Yasin, v.12" class="w-full py-3 text-xs outline-none text-indigo-800 font-bold bg-transparent">
+                    </div>
                     <textarea id="input-tarawih-notes" rows="6" placeholder="Ressenti de la prière ce soir ?" class="w-full bg-white border border-indigo-50 rounded-2xl p-5 text-xs outline-none focus:ring-2 focus:ring-indigo-100 journal-box shadow-sm text-left"></textarea>
                 </div>
+                
                 <div class="pt-6 border-t border-slate-100 bg-emerald-50/20 p-6 rounded-[2.5rem] text-center">
-                    <div class="flex items-center gap-3 mb-4 text-left"><i data-lucide="book-open" class="w-10 h-10 text-emerald-500"></i><span class="text-xs font-black uppercase text-emerald-600 tracking-widest italic text-left">Coran</span></div>
-                    <input type="text" id="input-surah" placeholder="Sourate lue aujourd'hui ?" class="w-full bg-white border border-emerald-50 rounded-xl p-5 text-xs outline-none mb-3 journal-box shadow-sm text-left">
-                    <textarea id="input-quran-notes" rows="6" placeholder="Notes de lecture, un verset marquant..." class="w-full bg-white border border-emerald-50 rounded-2xl p-5 text-xs outline-none journal-box shadow-sm text-left"></textarea>
+                    <div class="flex items-center gap-3 mb-4 text-left">
+                        <i data-lucide="book-open" class="w-10 h-10 text-emerald-500"></i>
+                        <span class="text-xs font-black uppercase text-emerald-600 tracking-widest italic text-left">Journal de Lecture</span>
+                    </div>
+                    
+                    <div class="bg-white p-4 rounded-2xl border border-emerald-50 shadow-sm mb-3">
+                        <input list="surah-list" type="text" id="input-surah-new" placeholder="Sourate (ex: Al-Mulk)" class="w-full bg-slate-50 border-none rounded-xl p-3 text-xs outline-none mb-2 font-bold text-slate-700">
+                        <div class="flex gap-2 mb-2">
+                            <input type="number" id="input-quran-start" placeholder="Début V." class="w-1/2 bg-slate-50 border-none rounded-xl p-3 text-xs outline-none text-center">
+                            <input type="number" id="input-quran-end" placeholder="Fin V." class="w-1/2 bg-slate-50 border-none rounded-xl p-3 text-xs outline-none text-center">
+                        </div>
+                        <button onclick="window.addQuranReading()" class="w-full bg-emerald-500 text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition">Ajouter la lecture</button>
+                    </div>
+
+                    <div id="quran-readings-list" class="space-y-1 mb-4 bg-white/50 p-2 rounded-2xl">
+                        ${(d.readingLogs || []).length > 0 ? (d.readingLogs || []).map((r, i) => `
+                            <div class="flex justify-between items-center text-[10px] py-2 border-b border-dashed border-emerald-100 last:border-0 bg-white px-3 rounded-lg shadow-sm">
+                                <div>
+                                    <span class="font-bold text-emerald-800">${r.surah}</span> 
+                                    <span class="text-emerald-500 italic ml-1">(V. ${r.start} à ${r.end})</span>
+                                </div>
+                                <button onclick="window.removeQuranReading(${i})" class="text-rose-300 hover:text-rose-500"><i data-lucide="x" class="w-3 h-3"></i></button>
+                            </div>
+                        `).join('') : '<p class="text-[9px] text-emerald-300 italic py-2">Aucune lecture enregistrée aujourd\'hui</p>'}
+                    </div>
+
+                    <textarea id="input-quran-notes" rows="6" placeholder="Verset marquant / Notes..." class="w-full bg-white border border-emerald-50 rounded-2xl p-5 text-xs outline-none journal-box shadow-sm text-left"></textarea>
                 </div>
 
                 <div class="pt-6 border-t border-slate-100 bg-rose-50/20 p-6 rounded-[2.5rem] text-center">
