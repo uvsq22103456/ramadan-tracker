@@ -30,7 +30,8 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        // J'ai mis v5 pour que les changements de structure soient propres
+        // ATTENTION : Je laisse v5 pour que tu retrouves tes données !
+        // Si tes données étaient sur la version d'avant, remplace v5 par v4 ici :
         const appId = 'ramadan-sisters-final-app-v5'; 
 
         window.db = db;
@@ -270,7 +271,7 @@
             });
         }
 
-        // --- GESTION DU SALON (NOUVEAU STYLE) ---
+        // --- GESTION DU SALON ---
 
         window.enterSalonRoom = (room) => {
             salonViewMode = 'room';
@@ -293,10 +294,6 @@
         window.resetNameExpl = async (uid) => {
             if(!confirm("Veux-tu modifier/supprimer ton explication ?")) return;
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'salon_names', `day_${activeDayIdx}`);
-            // On utilise updateDoc avec deleteField (mais ici setDoc avec merge et le champ à delete est plus complexe en vanilla simple)
-            // Solution simple : remplacer par null ou un objet vide, le code de rendu gère ça.
-            // Mieux : on réécrit l'objet sans la clé de l'user.
-            // Pour faire simple ici : on met un texte vide qui sera considéré comme "pas fait".
             await setDoc(docRef, { [uid]: null }, { merge: true });
         };
 
@@ -305,7 +302,6 @@
             if(!container) return;
             container.innerHTML = "";
 
-            // VUE MENU (ACCUEIL SALON)
             if (salonViewMode === 'menu') {
                 container.innerHTML = `
                 <div class="grid grid-cols-2 gap-4 px-2 pt-4 animate-in fade-in zoom-in duration-300">
@@ -349,7 +345,6 @@
                 }
             }
             
-            // VUE ROOM (CONTENU)
             else {
                 let headerColor = 'text-slate-800';
                 let title = '';
@@ -403,7 +398,7 @@
                                     ${isMe ? `<button onclick="window.deleteSalonItem('salon_gratitude', '${g.id}')" class="text-rose-300"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` : ''}
                                 </div>
                             </div>
-                            <p class="text-xs font-medium text-slate-700 italic">"${g.text}"</p>
+                            <p class="text-xs font-medium text-slate-700 italic">"${g.text.startsWith('Alhamdulillah pour ') ? g.text.replace('Alhamdulillah pour ', '') : g.text}"</p>
                         </div>
                     `}).join('');
                     html += `</div>`;
@@ -534,6 +529,40 @@
             showToast("Leçon publiée !");
         };
 
+        window.addQuranReading = async () => {
+            const surah = document.getElementById('input-surah-new').value;
+            const start = document.getElementById('input-quran-start').value;
+            const end = document.getElementById('input-quran-end').value;
+            
+            if(!surah || !start) { showToast("Remplis au moins la Sourate et le début !"); return; }
+
+            const newLog = {
+                surah: surah,
+                start: start,
+                end: end,
+                timestamp: Date.now()
+            };
+
+            if(!userData[activeDayIdx].readingLogs) userData[activeDayIdx].readingLogs = [];
+            userData[activeDayIdx].readingLogs.push(newLog);
+            
+            // Clear inputs
+            document.getElementById('input-surah-new').value = "";
+            document.getElementById('input-quran-start').value = "";
+            document.getElementById('input-quran-end').value = "";
+
+            await pushData();
+            refreshUI();
+            showToast("Lecture ajoutée 📖");
+        };
+
+        window.removeQuranReading = async (index) => {
+            if(!confirm("Supprimer cette lecture ?")) return;
+            userData[activeDayIdx].readingLogs.splice(index, 1);
+            await pushData();
+            refreshUI();
+        };
+
         // --- FIN GESTION SALON ---
 
         window.toggleCommonGoal = async (goalId) => {
@@ -558,7 +587,8 @@
                     prayers: [false,false,false,false,false], 
                     tarawih: false, 
                     tarawihNotes: "", 
-                    surah: "", 
+                    // New structure for readings
+                    readingLogs: [],
                     quranNotes: "", 
                     journal: "", 
                     water: 0, 
@@ -663,7 +693,6 @@
         window.closeResetModal = () => document.getElementById('reset-modal').classList.add('hidden');
         window.confirmResetDhikr = () => { userData[activeDayIdx].dhikr = { sub: 0, alh: 0, ast: 0, akb: 0 }; refreshUI(); pushData(); window.closeResetModal(); };
         window.saveJournal = () => {
-            userData[activeDayIdx].surah = document.getElementById('input-surah').value;
             userData[activeDayIdx].quranNotes = document.getElementById('input-quran-notes').value;
             userData[activeDayIdx].tarawihNotes = document.getElementById('input-tarawih-notes').value;
             userData[activeDayIdx].journal = document.getElementById('input-journal').value;
@@ -743,7 +772,16 @@
             document.getElementById('count-alh').innerText = dh.alh || 0;
             document.getElementById('count-ast').innerText = dh.ast || 0;
             document.getElementById('count-akb').innerText = dh.akb || 0;
-            document.getElementById('input-surah').value = d.surah || "";
+            
+            // --- CORAN SECTION LOGIC ---
+            const readings = d.readingLogs || [];
+            document.getElementById('quran-readings-list').innerHTML = readings.length > 0 ? readings.map((r, i) => `
+                <div class="flex justify-between items-center text-[10px] py-2 border-b border-dashed border-emerald-100 last:border-0">
+                    <div><span class="font-bold text-emerald-800">${r.surah}</span> <span class="text-emerald-500 italic ml-1">(V. ${r.start} à ${r.end})</span></div>
+                    <button onclick="window.removeQuranReading(${i})" class="text-rose-300 hover:text-rose-500"><i data-lucide="x" class="w-3 h-3"></i></button>
+                </div>
+            `).join('') : '<p class="text-[9px] text-emerald-300 italic py-2">Aucune lecture enregistrée</p>';
+
             document.getElementById('input-quran-notes').value = d.quranNotes || "";
             document.getElementById('input-tarawih-notes').value = d.tarawihNotes || "";
             document.getElementById('input-journal').value = d.journal || "";
@@ -795,47 +833,122 @@
 </head>
 <body class="min-h-screen flex flex-col">
 
-    <div id="reset-modal" class="hidden fixed inset-0 z-[400] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-        <div class="bg-white rounded-[2.5rem] p-8 w-full max-w-xs shadow-2xl animate-in zoom-in duration-300 text-center border border-slate-100">
-            <h3 class="text-sm font-black mb-2 text-slate-800">Réinitialiser ?</h3>
-            <p class="text-slate-400 text-xs mb-8">Voulez-vous remettre tous les compteurs Dhikr à zéro ?</p>
-            <div class="flex flex-col gap-2">
-                <button onclick="window.confirmResetDhikr()" class="bg-rose-500 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-lg">Tout effacer</button>
-                <button onclick="window.closeResetModal()" class="bg-slate-100 text-slate-400 py-4 rounded-2xl font-black text-xs uppercase text-center">Annuler</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="loading-moon" class="fixed inset-0 z-[500] bg-white flex flex-col items-center justify-center p-6 text-center">
-        <div class="bg-rose-50 w-24 h-24 rounded-full flex items-center justify-center animate-pulse mb-4"><i data-lucide="moon" class="text-rose-500 w-12 h-12"></i></div>
-        <p class="text-slate-400 text-sm font-bold" id="error-msg">Préparation du mois béni... ✨</p>
-    </div>
-
-    <div id="auth-screen" class="fixed inset-0 z-[200] bg-white flex flex-col items-center justify-center p-6 text-center overflow-y-auto">
-        <div class="mb-12 text-center">
-            <h1 class="text-xl font-black text-slate-900 tracking-tight">Ramadan Sisters</h1>
-            <p class="text-slate-400 mt-2 text-[10px] italic px-6 leading-relaxed">Suivons nos progrès durant ce mois béni ✨</p>
-        </div>
-        <div id="profile-grid" class="grid grid-cols-2 gap-4 w-full max-w-sm px-4"></div>
-        <div id="pin-pad" class="hidden w-full max-w-xs animate-in fade-in zoom-in duration-300 px-4 text-center pb-12">
-            <h2 id="pin-name" class="text-lg font-black mb-6 text-slate-800 italic text-center"></h2>
-            <input type="password" id="pin-display" readonly maxlength="4" placeholder="••••" class="w-full text-center text-3xl tracking-[1rem] bg-rose-50 border-none rounded-2xl p-6 text-rose-600 outline-none mb-6">
-            <div class="grid grid-cols-3 gap-3">
-                <button onclick="window.pressKey('1')" class="bg-white p-5 rounded-2xl shadow-sm font-bold active:bg-rose-50">1</button>
-                <button onclick="window.pressKey('2')" class="bg-white p-5 rounded-2xl shadow-sm font-bold active:bg-rose-50">2</button>
-                <button onclick="window.pressKey('3')" class="bg-white p-5 rounded-2xl shadow-sm font-bold active:bg-rose-50">3</button>
-                <button onclick="window.pressKey('4')" class="bg-white p-5 rounded-2xl shadow-sm font-bold active:bg-rose-50">4</button>
-                <button onclick="window.pressKey('5')" class="bg-white p-5 rounded-2xl shadow-sm font-bold active:bg-rose-50">5</button>
-                <button onclick="window.pressKey('6')" class="bg-white p-5 rounded-2xl shadow-sm font-bold active:bg-rose-50">6</button>
-                <button onclick="window.pressKey('7')" class="bg-white p-5 rounded-2xl shadow-sm font-bold active:bg-rose-50">7</button>
-                <button onclick="window.pressKey('8')" class="bg-white p-5 rounded-2xl shadow-sm font-bold active:bg-rose-50">8</button>
-                <button onclick="window.pressKey('9')" class="bg-white p-5 rounded-2xl shadow-sm font-bold active:bg-rose-50">9</button>
-                <button onclick="window.clearPin()" class="bg-rose-50 text-rose-400 p-5 rounded-2xl font-black text-[10px] uppercase text-center">Reset</button>
-                <button onclick="window.pressKey('0')" class="bg-white p-5 rounded-2xl shadow-sm font-bold active:bg-rose-50 text-center">0</button>
-                <button onclick="window.validatePin()" class="bg-rose-500 text-white p-5 rounded-2xl font-bold shadow-md active:scale-95 transition text-center">OK</button>
-            </div>
-        </div>
-    </div>
+    <datalist id="surah-list">
+        <option value="Al-Fatiha">
+        <option value="Al-Baqarah">
+        <option value="Al-Imran">
+        <option value="An-Nisa">
+        <option value="Al-Ma'idah">
+        <option value="Al-An'am">
+        <option value="Al-A'raf">
+        <option value="Al-Anfal">
+        <option value="At-Tawbah">
+        <option value="Yunus">
+        <option value="Hud">
+        <option value="Yusuf">
+        <option value="Ar-Ra'd">
+        <option value="Ibrahim">
+        <option value="Al-Hijr">
+        <option value="An-Nahl">
+        <option value="Al-Isra">
+        <option value="Al-Kahf">
+        <option value="Maryam">
+        <option value="Ta-Ha">
+        <option value="Al-Anbiya">
+        <option value="Al-Hajj">
+        <option value="Al-Mu'minun">
+        <option value="An-Nur">
+        <option value="Al-Furqan">
+        <option value="Ash-Shu'ara">
+        <option value="An-Naml">
+        <option value="Al-Qasas">
+        <option value="Al-Ankabut">
+        <option value="Ar-Rum">
+        <option value="Luqman">
+        <option value="As-Sajdah">
+        <option value="Al-Ahzab">
+        <option value="Saba">
+        <option value="Fatir">
+        <option value="Ya-Sin">
+        <option value="As-Saffat">
+        <option value="Sad">
+        <option value="Az-Zumar">
+        <option value="Ghafir">
+        <option value="Fussilat">
+        <option value="Ash-Shura">
+        <option value="Az-Zukhruf">
+        <option value="Ad-Dukhan">
+        <option value="Al-Jathiyah">
+        <option value="Al-Ahqaf">
+        <option value="Muhammad">
+        <option value="Al-Fath">
+        <option value="Al-Hujurat">
+        <option value="Qaf">
+        <option value="Ad-Dhariyat">
+        <option value="At-Tur">
+        <option value="An-Najm">
+        <option value="Al-Qamar">
+        <option value="Ar-Rahman">
+        <option value="Al-Waqi'ah">
+        <option value="Al-Hadid">
+        <option value="Al-Mujadila">
+        <option value="Al-Hashr">
+        <option value="Al-Mumtahanah">
+        <option value="As-Saff">
+        <option value="Al-Jumu'ah">
+        <option value="Al-Munafiqun">
+        <option value="At-Taghabun">
+        <option value="At-Talaq">
+        <option value="At-Tahrim">
+        <option value="Al-Mulk">
+        <option value="Al-Qalam">
+        <option value="Al-Haqqah">
+        <option value="Al-Ma'arij">
+        <option value="Nuh">
+        <option value="Al-Jinn">
+        <option value="Al-Muzzammil">
+        <option value="Al-Muddathir">
+        <option value="Al-Qiyamah">
+        <option value="Al-Insan">
+        <option value="Al-Mursalat">
+        <option value="An-Naba">
+        <option value="An-Nazi'at">
+        <option value="Abasa">
+        <option value="At-Takwir">
+        <option value="Al-Infitar">
+        <option value="Al-Mutaffifin">
+        <option value="Al-Inshiqaq">
+        <option value="Al-Buruj">
+        <option value="At-Tariq">
+        <option value="Al-A'la">
+        <option value="Al-Ghashiyah">
+        <option value="Al-Fajr">
+        <option value="Al-Balad">
+        <option value="Ash-Shams">
+        <option value="Al-Layl">
+        <option value="Ad-Duha">
+        <option value="Ash-Sharh">
+        <option value="At-Tin">
+        <option value="Al-Alaq">
+        <option value="Al-Qadr">
+        <option value="Al-Bayyinah">
+        <option value="Az-Zalzalah">
+        <option value="Al-Adiyat">
+        <option value="Al-Qari'ah">
+        <option value="At-Takathur">
+        <option value="Al-Asr">
+        <option value="Al-Humazah">
+        <option value="Al-Fil">
+        <option value="Quraysh">
+        <option value="Al-Ma'un">
+        <option value="Al-Kawthar">
+        <option value="Al-Kafirun">
+        <option value="An-Nasr">
+        <option value="Al-Masad">
+        <option value="Al-Ikhlas">
+        <option value="Al-Falaq">
+        <option value="An-Nas">
+    </datalist>
 
     <main id="app-content" class="hidden flex-1 pb-40 overflow-y-auto no-scrollbar">
         <header class="p-6 pt-12 flex justify-between items-center bg-white rounded-b-[3rem] shadow-sm mb-6 border-b border-rose-50 sticky top-0 z-50 text-center">
@@ -875,10 +988,24 @@
                     <div class="flex justify-between items-center mb-4"><div class="flex items-center gap-3 text-left"><i data-lucide="moon" class="w-10 h-10 text-indigo-500"></i><span class="text-xs font-black uppercase text-indigo-600 tracking-widest italic text-left">Tarawih</span></div><button onclick="window.toggleTarawih()" id="tarawih-btn" class="transition-all"></button></div>
                     <textarea id="input-tarawih-notes" rows="6" placeholder="Ressenti de la prière ce soir ?" class="w-full bg-white border border-indigo-50 rounded-2xl p-5 text-xs outline-none focus:ring-2 focus:ring-indigo-100 journal-box shadow-sm text-left"></textarea>
                 </div>
+                
                 <div class="pt-6 border-t border-slate-100 bg-emerald-50/20 p-6 rounded-[2.5rem] text-center">
-                    <div class="flex items-center gap-3 mb-4 text-left"><i data-lucide="book-open" class="w-10 h-10 text-emerald-500"></i><span class="text-xs font-black uppercase text-emerald-600 tracking-widest italic text-left">Coran</span></div>
-                    <input type="text" id="input-surah" placeholder="Sourate lue aujourd'hui ?" class="w-full bg-white border border-emerald-50 rounded-xl p-5 text-xs outline-none mb-3 journal-box shadow-sm text-left">
-                    <textarea id="input-quran-notes" rows="6" placeholder="Notes de lecture, un verset marquant..." class="w-full bg-white border border-emerald-50 rounded-2xl p-5 text-xs outline-none journal-box shadow-sm text-left"></textarea>
+                    <div class="flex items-center gap-3 mb-4 text-left"><i data-lucide="book-open" class="w-10 h-10 text-emerald-500"></i><span class="text-xs font-black uppercase text-emerald-600 tracking-widest italic text-left">Journal de Lecture Coran</span></div>
+                    
+                    <div class="flex gap-2 mb-2">
+                        <input list="surah-list" type="text" id="input-surah-new" placeholder="Sourate (ex: Al-Mulk)" class="w-2/3 bg-white border border-emerald-50 rounded-xl p-4 text-xs outline-none shadow-sm text-left">
+                        <button onclick="window.addQuranReading()" class="w-1/3 bg-emerald-500 text-white rounded-xl shadow-md font-bold text-xs uppercase tracking-widest">Ajouter</button>
+                    </div>
+                    <div class="flex gap-2 items-center mb-4">
+                        <input type="number" id="input-quran-start" placeholder="V. Début" class="w-1/2 bg-white border border-emerald-50 rounded-xl p-4 text-xs outline-none shadow-sm text-center">
+                        <span class="text-[9px] font-bold text-emerald-300">à</span>
+                        <input type="number" id="input-quran-end" placeholder="V. Fin" class="w-1/2 bg-white border border-emerald-50 rounded-xl p-4 text-xs outline-none shadow-sm text-center">
+                    </div>
+
+                    <div id="quran-readings-list" class="space-y-1 mb-4 bg-white/50 p-3 rounded-2xl">
+                        </div>
+
+                    <textarea id="input-quran-notes" rows="6" placeholder="Verset marquant / Notes..." class="w-full bg-white border border-emerald-50 rounded-2xl p-5 text-xs outline-none journal-box shadow-sm text-left"></textarea>
                 </div>
 
                 <div class="pt-6 border-t border-slate-100 bg-rose-50/20 p-6 rounded-[2.5rem] text-center">
@@ -1017,20 +1144,4 @@
             <div class="space-y-4 pt-4 text-left">
                 <h4 class="text-[9px] font-black text-slate-400 px-4 uppercase tracking-[0.2em] text-center">Hadiths & Rappels 🌙</h4>
                 <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border-l-4 border-rose-500 mb-3 text-left"><p class="text-[10px] font-semibold text-slate-700 italic leading-relaxed">"Celui qui jeûne Ramadan avec foi et espoir de récompense, ses péchés précédents sont pardonnés."</p><p class="text-[8px] text-rose-400 font-bold uppercase mt-2 tracking-widest text-right">— Bukhari & Muslim</p></div>
-                <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border-l-4 border-emerald-500 text-left"><p class="text-[10px] font-semibold text-slate-700 italic leading-relaxed text-left">"L'odeur de la bouche du jeûneur est plus parfumée auprès d'Allah que celle du musc."</p><p class="text-[8px] text-emerald-400 font-bold uppercase mt-2 tracking-widest text-right">— Bukhari & Muslim</p></div>
-            </div>
-        </div>
-    </main>
-
-    <nav id="app-nav" class="hidden fixed bottom-0 left-0 right-0 glass border-t flex justify-around p-4 pb-12 z-[150] overflow-x-auto no-scrollbar text-center">
-        <button onclick="window.switchTab('calendar')" id="nav-calendar" class="flex flex-col items-center gap-1 text-rose-600 min-w-[50px] text-center"><i data-lucide="calendar"></i><span class="text-[8px] font-black uppercase tracking-tight text-center">Suivi</span></button>
-        <button onclick="window.switchTab('salon')" id="nav-salon" class="flex flex-col items-center gap-1 text-slate-300 min-w-[50px] text-center"><i data-lucide="message-circle"></i><span class="text-[8px] font-black uppercase tracking-tight text-center">Salon</span></button>
-        <button onclick="window.switchTab('quiz')" id="nav-quiz" class="flex flex-col items-center gap-1 text-slate-300 min-w-[50px] text-center"><i data-lucide="trophy"></i><span class="text-[8px] font-black uppercase tracking-tight text-center">Quiz</span></button>
-        <button onclick="window.switchTab('cuisine')" id="nav-cuisine" class="flex flex-col items-center gap-1 text-slate-300 min-w-[50px] text-center"><i data-lucide="coffee"></i><span class="text-[8px] font-black uppercase tracking-tight text-center">Cuisine</span></button>
-        <button onclick="window.switchTab('dhikr')" id="nav-dhikr" class="flex flex-col items-center gap-1 text-slate-300 min-w-[50px] text-center"><i data-lucide="hash"></i><span class="text-[8px] font-black uppercase tracking-tight text-center">Dhikr</span></button>
-        <button onclick="window.switchTab('spiritual')" id="nav-spiritual" class="flex flex-col items-center gap-1 text-slate-300 min-w-[50px] text-center"><i data-lucide="sparkles"></i><span class="text-[8px] font-black uppercase tracking-tight text-center">Cœur</span></button>
-    </nav>
-
-    <script>lucide.createIcons();</script>
-</body>
-</html>
+                <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border-l-4 border-emerald-500 text-left"><p class="text-[10px] font-semibold text-slate-700 italic leading-relaxed text-left">"L'odeur de la bouche du jeûneur est plus parfumée auprès d'Allah que celle du musc."</
