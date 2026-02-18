@@ -29,7 +29,7 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        // ON GARDE v5 POUR TES DONNÉES
+        // Version v5 pour garder tes données
         const appId = 'ramadan-sisters-final-app-v5'; 
 
         window.db = db;
@@ -127,12 +127,7 @@
                 { q: "Quel prophète a été avalé par un poisson ?", a: ["Younous", "Ayoub", "Houd"], c: 0 },
                 { q: "Quel prophète a été envoyé à Thamud ?", a: ["Salih", "Houd", "Lout"], c: 0 },
                 { q: "Quel prophète a reçu le Zabur ?", a: ["Daoud", "Suleyman", "Moussa"], c: 0 },
-                { q: "Quel prophète a été créé sans père ?", a: ["Issa", "Yahya", "Adam"], c: 0 },
-                { q: "Quel est le premier prophète ?", a: ["Adam", "Nouh", "Idriss"], c: 0 },
-                { q: "Quel prophète est le 'Khalil' (Ami intime) d'Allah ?", a: ["Ibrahim", "Moussa", "Issa"], c: 0 },
-                { q: "Quel prophète a combattu Goliath (Jalut) ?", a: ["Daoud", "Suleyman", "Talut"], c: 0 },
-                { q: "Le prophète Muhammad (sws) est mort à quel âge ?", a: ["63 ans", "60 ans", "65 ans"], c: 0 },
-                { q: "Quel prophète a demandé à voir Allah ?", a: ["Moussa", "Ibrahim", "Issa"], c: 0 }
+                { q: "Quel prophète a été créé sans père ?", a: ["Issa", "Yahya", "Adam"], c: 0 }
             ],
             'ramadan': [
                 { q: "En quelle année le jeûne a-t-il été instauré ?", a: ["An 1", "An 2", "An 3"], c: 1 },
@@ -403,7 +398,7 @@
             const prayers = ["Fajr", "Dohr", "Asr", "Magh", "Isha"]; document.getElementById('prayer-grid').innerHTML = prayers.map((n, i) => `<button onclick="window.togglePrayer(${i})" class="flex flex-col items-center gap-1 text-center"><div class="w-9 h-9 rounded-2xl flex items-center justify-center ${d.prayers && d.prayers[i] ? 'bg-rose-500 text-white' : 'bg-slate-50 text-slate-200'}"><i data-lucide="check" class="w-5 h-5"></i></div><span class="text-[7px] font-black uppercase text-slate-400">${n}</span></button>`).join('');
             
             const suhoorSteps = ["Réveil", "Tahajjud", "Suhoor", "Fajr"]; const sIcons = ["alarm-clock", "moon", "coffee", "sun"]; const suhoorStatus = d.suhoorRoutine || [false, false, false, false];
-            document.getElementById('suhoor-routine-grid').innerHTML = suhoorSteps.map((s, i) => `<button onclick="window.toggleSuhoorRoutine(${i})" class="flex flex-col items-center gap-2 p-3 rounded-2xl border ${suhoorStatus[i] ? 'bg-gradient-to-br from-indigo-500 to-sky-500 text-white shadow-md border-transparent' : 'bg-white border-slate-100 text-slate-300'} transition-all duration-300"><i data-lucide="${sIcons[i]}" class="w-4 h-4 ${suhoorStatus[i] ? 'text-white' : ''}"></i><span class="text-[8px] font-black uppercase tracking-widest">${s}</span></button>`).join('');
+            document.getElementById('suhoor-routine-grid').innerHTML = suhoorSteps.map((s, i) => `<button onclick="window.toggleSuhoorRoutine(${i})" class="flex flex-col items-center gap-2 p-3 rounded-2xl border ${suhoorStatus[i] ? 'bg-white/20 border-white text-white shadow-inner' : 'bg-white/5 border-white/10 text-blue-200'} transition-all duration-300 backdrop-blur-sm"><i data-lucide="${sIcons[i]}" class="w-4 h-4 ${suhoorStatus[i] ? 'text-white' : 'text-blue-200'}"></i><span class="text-[8px] font-black uppercase tracking-widest">${s}</span></button>`).join('');
 
             document.getElementById('tarawih-btn').innerText = d.tarawih ? "FAIT ✨" : "PAS ALLÉ"; document.getElementById('tarawih-btn').className = `px-5 py-2 rounded-full text-[9px] font-black ${d.tarawih ? 'bg-indigo-500 text-white shadow-md' : 'bg-slate-100 text-slate-400'}`;
             document.getElementById('objectives-list').innerHTML = d.objectives?.length > 0 ? d.objectives.map((o, i) => `<div class="flex items-center justify-between bg-slate-50 p-3 rounded-xl mb-2"><div class="flex items-center gap-3"><button onclick="window.toggleObjective(${i})" class="w-5 h-5 rounded-md border-2 border-rose-200 flex items-center justify-center ${o.done ? 'bg-rose-500 border-rose-500' : ''}">${o.done ? '<i data-lucide="check" class="w-3 h-3 text-white"></i>' : ''}</button><span class="text-xs ${o.done ? 'line-through text-slate-400' : 'text-slate-700 font-medium text-left'}">${o.text}</span></div><button onclick="window.removeObjective(${i})" class="text-slate-300"><i data-lucide="x" class="w-4 h-4"></i></button></div>`).join('') : '<p class="text-[9px] text-slate-400 italic text-center py-2">Aucun objectif...</p>';
