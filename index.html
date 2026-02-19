@@ -1015,47 +1015,81 @@ window.compressRecipeImg = (inp) => {
     }
 };
 
+let editingRecipeId = null; 
+
+window.editSisterRecipe = (id, isPrivate) => {
+    const list = isPrivate ? allPrivateRecipes : allSharedRecipes;
+    const recipe = list.find(r => r.id === id);
+    if(!recipe) return;
+
+    document.getElementById('sr-titre').value = recipe.n;
+    document.getElementById('sr-cat').value = recipe.cat;
+    document.getElementById('sr-vis').value = isPrivate ? 'private' : 'shared';
+    document.getElementById('sr-ingr').value = recipe.ingr;
+    document.getElementById('sr-steps').value = recipe.steps;
+    tmpRecipeImg = recipe.i;
+    
+    editingRecipeId = id;
+    const btn = document.querySelector('[onclick="window.addSisterRecipe()"]');
+    btn.innerText = "Mettre à jour la recette";
+    btn.classList.add('bg-indigo-500'); // On change la couleur pour montrer qu'on modifie
+
+    document.getElementById('details-add-recipe').open = true;
+    document.getElementById('details-add-recipe').scrollIntoView({ behavior: 'smooth' });
+    showToast("Mode modification activé ✏️");
+};
+
 window.addSisterRecipe = async () => {
     if (!currentUser) return;
     const n = document.getElementById('sr-titre').value.trim();
     const cat = document.getElementById('sr-cat').value;
-    const vis = document.getElementById('sr-vis').value; // 'shared' ou 'private'
+    const vis = document.getElementById('sr-vis').value;
     const ingr = document.getElementById('sr-ingr').value.trim();
     const steps = document.getElementById('sr-steps').value.trim();
     const i = tmpRecipeImg || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400";
     
-    if(n) {
-        const btn = document.querySelector('[onclick="window.addSisterRecipe()"]');
-        if(btn) btn.innerText = "⏳...";
+    if(!n) return;
+    const btn = document.querySelector('[onclick="window.addSisterRecipe()"]');
+    const originalBtnText = "Enregistrer la recette";
+    btn.innerText = "⏳...";
+    
+    try {
+        const recipeData = { n, cat, ingr, steps, i, d: Date.now() };
+        if (vis === 'shared') {
+            recipeData.author = currentUser.name;
+            recipeData.authorId = currentUser.id;
+        }
+
+        const path = vis === 'private' 
+            ? ['users', currentUser.id, 'private_recipes'] 
+            : ['public', 'data', 'shared_recipes'];
+
+        if (editingRecipeId) {
+            // On utilise setDoc avec merge pour modifier l'existante
+            await window.setDoc(window.doc(window.db, 'artifacts', appId, ...path, editingRecipeId), recipeData, { merge: true });
+            showToast("Recette mise à jour ! ✨");
+            editingRecipeId = null;
+        } else {
+            // On utilise addDoc pour une nouvelle recette
+            await window.addDoc(window.collection(window.db, 'artifacts', appId, ...path), recipeData);
+            showToast("Recette enregistrée ! 🍲");
+        }
         
-        try {
-            if (vis === 'private') {
-                // Sauvegarde 100% SECRÈTE dans ton dossier personnel
-                await window.addDoc(window.collection(window.db, 'artifacts', appId, 'users', currentUser.id, 'private_recipes'), {
-                    n, cat, ingr, steps, i, d: Date.now()
-                });
-                showToast("Ajouté à ton carnet secret 🔒");
-            } else {
-                // Sauvegarde PARTAGÉE avec toutes les filles
-                await window.addDoc(window.collection(window.db, 'artifacts', appId, 'public', 'data', 'shared_recipes'), {
-                    n, cat, ingr, steps, i, author: currentUser.name, authorId: currentUser.id, d: Date.now()
-                });
-                showToast("Recette envoyée dans la Marmite ! 🍲");
-            }
-            
-            // Remise à zéro du formulaire
-            document.getElementById('sr-titre').value = '';
-            document.getElementById('sr-ingr').value = '';
-            document.getElementById('sr-steps').value = '';
-            tmpRecipeImg = '';
-            document.getElementById('txt-r-photo').innerHTML = "<i data-lucide='camera' class='w-4 h-4'></i> Ajouter une photo";
-            document.querySelector('#details-add-recipe').removeAttribute('open');
-            lucide.createIcons();
-        } catch(e) { console.error(e); }
-        if(btn) btn.innerText = "Enregistrer la recette";
+        // Reset complet du formulaire
+        document.getElementById('sr-titre').value = '';
+        document.getElementById('sr-ingr').value = '';
+        document.getElementById('sr-steps').value = '';
+        tmpRecipeImg = '';
+        document.getElementById('txt-r-photo').innerHTML = "<i data-lucide='camera' class='w-4 h-4'></i> Ajouter une photo";
+        btn.innerText = originalBtnText;
+        btn.classList.remove('bg-indigo-500');
+        document.getElementById('details-add-recipe').removeAttribute('open');
+        lucide.createIcons();
+    } catch(e) { 
+        console.error(e); 
+        btn.innerText = originalBtnText;
     }
 };
-
 let currentRecFilter = 'all';
 let currentRecView = 'shared'; // 'shared' ou 'private'
 let allSharedRecipes = [];
@@ -1107,47 +1141,50 @@ window.renderSisterRecipes = () => {
     const filtered = currentRecFilter === 'all' ? baseList : baseList.filter(r => r.cat === currentRecFilter);
     
     if (filtered.length === 0) {
-        l.innerHTML = `<p class="text-[9px] text-slate-300 italic">Aucune recette dans ${currentRecView === 'shared' ? 'la Marmite' : 'ton Carnet secret'} pour le moment...</p>`;
+        l.innerHTML = `<p class="text-[9px] text-slate-300 italic">Aucune recette ici...</p>`;
         return;
     }
     
     l.innerHTML = filtered.map(r => {
-        const ingrHtml = r.ingr ? r.ingr.replace(/\n/g, '<br>') : 'Rien de spécifié';
-        const stepsHtml = r.steps ? r.steps.replace(/\n/g, '<br>') : 'Rien de spécifié';
-        const catColors = { 'Salé': 'bg-amber-100 text-amber-600', 'Sucré': 'bg-indigo-100 text-indigo-600' };
-        const catBadge = r.cat ? `<span class="absolute top-2 left-2 ${catColors[r.cat]||'bg-slate-100'} text-[9px] font-black px-3 py-1 rounded-full uppercase z-10 shadow-sm">${r.cat}</span>` : '';
-        
         const isPrivate = currentRecView === 'private';
-        const authorBadge = isPrivate ? `<div class="absolute top-2 right-2 bg-slate-900/60 backdrop-blur-sm text-white text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full z-10"><i data-lucide="lock" class="w-2.5 h-2.5 inline"></i> Privé</div>` : `<div class="absolute top-2 right-2 bg-black/40 backdrop-blur-sm text-white text-[8px] font-bold px-3 py-1 rounded-full z-10">De ${r.author}</div>`;
+        const canEdit = isPrivate || r.authorId === currentUser?.id;
         
-        const canDelete = isPrivate || r.authorId === currentUser?.id;
-        const delBtn = canDelete ? `<button onclick="window.delSisterRecipe('${r.id}', ${isPrivate})" class="w-full mt-4 text-[10px] text-rose-400 border border-rose-100 bg-rose-50 rounded-xl py-3 font-bold uppercase tracking-widest active:scale-95 transition">Supprimer ma recette</button>` : '';
+        // Boutons Action (Modif / Suppr)
+        const actionBtns = canEdit ? `
+            <div class="flex gap-2 mt-4">
+                <button onclick="window.editSisterRecipe('${r.id}', ${isPrivate})" class="flex-1 text-[10px] text-indigo-500 border border-indigo-100 bg-indigo-50 rounded-xl py-3 font-black uppercase tracking-widest active:scale-95 transition">Modifier</button>
+                <button onclick="window.delSisterRecipe('${r.id}', ${isPrivate})" class="bg-rose-50 border border-rose-100 p-3 rounded-xl text-rose-400 active:scale-95 transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            </div>
+        ` : '';
         
         return `
         <div class="bg-white rounded-3xl overflow-hidden relative shadow-sm border border-slate-50 mb-4 animate-in fade-in zoom-in text-left">
-            ${catBadge}
-            ${authorBadge}
+            <span class="absolute top-2 left-2 bg-white/90 backdrop-blur-sm text-[9px] font-black px-3 py-1 rounded-full uppercase z-10 shadow-sm text-slate-600">${r.cat}</span>
+            <div class="absolute top-2 right-2 bg-black/40 backdrop-blur-sm text-white text-[8px] font-bold px-3 py-1 rounded-full z-10">${isPrivate ? '🔒 Privé' : 'De '+r.author}</div>
             <div class="h-40 bg-cover bg-center relative" style="background-image:url('${r.i}')">
-                <h3 class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent text-white p-4 pt-12 font-black text-lg leading-tight shadow-sm">${r.n}</h3>
+                <h3 class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent text-white p-4 pt-12 font-black text-lg leading-tight">${r.n}</h3>
             </div>
             <details class="group p-4">
-                <summary class="text-xs font-black text-rose-500 cursor-pointer list-none flex justify-between items-center outline-none bg-rose-50 px-4 py-3 rounded-2xl">
-                    <span class="uppercase tracking-widest">Voir la préparation</span> 
+                <summary class="text-xs font-black text-rose-500 cursor-pointer list-none flex justify-between items-center outline-none bg-rose-50/50 px-4 py-3 rounded-2xl">
+                    <span class="uppercase tracking-widest text-[10px]">Ingrédients & Étapes</span> 
                     <i data-lucide="chevron-down" class="w-4 h-4 group-open:rotate-180 transition-transform"></i>
                 </summary>
-                <div class="mt-5 text-xs text-slate-600">
-                    <p class="font-black uppercase text-[10px] text-amber-500 mb-2 tracking-widest"><i data-lucide="shopping-basket" class="w-3 h-3 inline"></i> Ingrédients</p>
-                    <p class="mb-5 pl-3 border-l-2 border-amber-100 leading-relaxed font-medium">${ingrHtml}</p>
-                    <p class="font-black uppercase text-[10px] text-indigo-500 mb-2 tracking-widest"><i data-lucide="chef-hat" class="w-3 h-3 inline"></i> Préparation</p>
-                    <p class="pl-3 border-l-2 border-indigo-100 leading-relaxed font-medium">${stepsHtml}</p>
+                <div class="mt-5 text-xs text-slate-600 space-y-4">
+                    <div>
+                        <p class="font-black uppercase text-[9px] text-amber-500 mb-1 tracking-widest">Ingrédients</p>
+                        <p class="pl-3 border-l-2 border-amber-100 leading-relaxed font-medium">${r.ingr.replace(/\n/g, '<br>')}</p>
+                    </div>
+                    <div>
+                        <p class="font-black uppercase text-[9px] text-indigo-500 mb-1 tracking-widest">Préparation</p>
+                        <p class="pl-3 border-l-2 border-indigo-100 leading-relaxed font-medium">${r.steps.replace(/\n/g, '<br>')}</p>
+                    </div>
                 </div>
-                ${delBtn}
+                ${actionBtns}
             </details>
         </div>`;
     }).join('');
     lucide.createIcons();
 };
-
 let sharedRecListener = false;
 let privateRecListener = false;
 
