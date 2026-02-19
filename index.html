@@ -993,6 +993,185 @@ document.addEventListener('input', (e) => {
         window.logout = () => { sessionStorage.clear(); location.reload(); };
         window.onload = () => { lucide.createIcons(); initApp(); };
 
+
+// ==========================================
+// AJOUT : MOTEUR DES RECETTES (PARTAGÉ + PRIVÉ)
+// ==========================================
+
+let tmpRecipeImg = '';
+window.compressRecipeImg = (inp) => {
+    const f = inp.files[0]; if(!f) return;
+    const r = new FileReader(); r.readAsDataURL(f);
+    r.onload = (e) => {
+        const img = new Image(); img.src = e.target.result;
+        img.onload = () => {
+            const c = document.createElement('canvas'); const ctx = c.getContext('2d');
+            const sc = 400 / img.width; c.width = 400; c.height = img.height * sc;
+            ctx.drawImage(img, 0, 0, c.width, c.height);
+            tmpRecipeImg = c.toDataURL('image/jpeg', 0.6);
+            document.getElementById('txt-r-photo').innerHTML = "<i data-lucide='check' class='w-4 h-4'></i> Photo Prête !";
+            lucide.createIcons();
+        }
+    }
+};
+
+window.addSisterRecipe = async () => {
+    if (!currentUser) return;
+    const n = document.getElementById('sr-titre').value.trim();
+    const cat = document.getElementById('sr-cat').value;
+    const vis = document.getElementById('sr-vis').value; // 'shared' ou 'private'
+    const ingr = document.getElementById('sr-ingr').value.trim();
+    const steps = document.getElementById('sr-steps').value.trim();
+    const i = tmpRecipeImg || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400";
+    
+    if(n) {
+        const btn = document.querySelector('[onclick="window.addSisterRecipe()"]');
+        if(btn) btn.innerText = "⏳...";
+        
+        try {
+            if (vis === 'private') {
+                // Sauvegarde 100% SECRÈTE dans ton dossier personnel
+                await window.addDoc(window.collection(window.db, 'artifacts', appId, 'users', currentUser.id, 'private_recipes'), {
+                    n, cat, ingr, steps, i, d: Date.now()
+                });
+                showToast("Ajouté à ton carnet secret 🔒");
+            } else {
+                // Sauvegarde PARTAGÉE avec toutes les filles
+                await window.addDoc(window.collection(window.db, 'artifacts', appId, 'public', 'data', 'shared_recipes'), {
+                    n, cat, ingr, steps, i, author: currentUser.name, authorId: currentUser.id, d: Date.now()
+                });
+                showToast("Recette envoyée dans la Marmite ! 🍲");
+            }
+            
+            // Remise à zéro du formulaire
+            document.getElementById('sr-titre').value = '';
+            document.getElementById('sr-ingr').value = '';
+            document.getElementById('sr-steps').value = '';
+            tmpRecipeImg = '';
+            document.getElementById('txt-r-photo').innerHTML = "<i data-lucide='camera' class='w-4 h-4'></i> Ajouter une photo";
+            document.querySelector('#details-add-recipe').removeAttribute('open');
+            lucide.createIcons();
+        } catch(e) { console.error(e); }
+        if(btn) btn.innerText = "Enregistrer la recette";
+    }
+};
+
+let currentRecFilter = 'all';
+let currentRecView = 'shared'; // 'shared' ou 'private'
+let allSharedRecipes = [];
+let allPrivateRecipes = [];
+
+window.switchRecView = (view) => {
+    currentRecView = view;
+    const btnShared = document.getElementById('btn-view-shared');
+    const btnPrivate = document.getElementById('btn-view-private');
+    
+    if(view === 'shared') {
+        btnShared.className = "flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl bg-rose-500 text-white shadow-sm transition-all";
+        btnPrivate.className = "flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl text-slate-400 bg-transparent transition-all";
+    } else {
+        btnPrivate.className = "flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl bg-rose-500 text-white shadow-sm transition-all";
+        btnShared.className = "flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl text-slate-400 bg-transparent transition-all";
+    }
+    window.renderSisterRecipes();
+};
+
+window.filterSisterRecipes = (filter) => {
+    currentRecFilter = filter;
+    document.querySelectorAll('.filter-rec-chip').forEach(btn => {
+        btn.classList.remove('bg-slate-800', 'text-white', 'border-slate-800');
+        btn.classList.add('bg-white', 'text-slate-400', 'border-slate-100');
+        if(btn.id === 'f-rec-' + filter) {
+            btn.classList.remove('bg-white', 'text-slate-400', 'border-slate-100');
+            btn.classList.add('bg-slate-800', 'text-white', 'border-slate-800');
+        }
+    });
+    window.renderSisterRecipes();
+};
+
+window.delSisterRecipe = async (id, isPrivate) => {
+    if(confirm("Supprimer définitivement cette recette ?")) {
+        if(isPrivate) {
+            await window.deleteDoc(window.doc(window.db, 'artifacts', appId, 'users', currentUser.id, 'private_recipes', id));
+        } else {
+            await window.deleteDoc(window.doc(window.db, 'artifacts', appId, 'public', 'data', 'shared_recipes', id));
+        }
+    }
+};
+
+window.renderSisterRecipes = () => {
+    const l = document.getElementById('list-sisters-recipes');
+    if(!l) return;
+    
+    const baseList = currentRecView === 'shared' ? allSharedRecipes : allPrivateRecipes;
+    const filtered = currentRecFilter === 'all' ? baseList : baseList.filter(r => r.cat === currentRecFilter);
+    
+    if (filtered.length === 0) {
+        l.innerHTML = `<p class="text-[9px] text-slate-300 italic">Aucune recette dans ${currentRecView === 'shared' ? 'la Marmite' : 'ton Carnet secret'} pour le moment...</p>`;
+        return;
+    }
+    
+    l.innerHTML = filtered.map(r => {
+        const ingrHtml = r.ingr ? r.ingr.replace(/\n/g, '<br>') : 'Rien de spécifié';
+        const stepsHtml = r.steps ? r.steps.replace(/\n/g, '<br>') : 'Rien de spécifié';
+        const catColors = { 'Salé': 'bg-amber-100 text-amber-600', 'Sucré': 'bg-indigo-100 text-indigo-600' };
+        const catBadge = r.cat ? `<span class="absolute top-2 left-2 ${catColors[r.cat]||'bg-slate-100'} text-[9px] font-black px-3 py-1 rounded-full uppercase z-10 shadow-sm">${r.cat}</span>` : '';
+        
+        const isPrivate = currentRecView === 'private';
+        const authorBadge = isPrivate ? `<div class="absolute top-2 right-2 bg-slate-900/60 backdrop-blur-sm text-white text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full z-10"><i data-lucide="lock" class="w-2.5 h-2.5 inline"></i> Privé</div>` : `<div class="absolute top-2 right-2 bg-black/40 backdrop-blur-sm text-white text-[8px] font-bold px-3 py-1 rounded-full z-10">De ${r.author}</div>`;
+        
+        const canDelete = isPrivate || r.authorId === currentUser?.id;
+        const delBtn = canDelete ? `<button onclick="window.delSisterRecipe('${r.id}', ${isPrivate})" class="w-full mt-4 text-[10px] text-rose-400 border border-rose-100 bg-rose-50 rounded-xl py-3 font-bold uppercase tracking-widest active:scale-95 transition">Supprimer ma recette</button>` : '';
+        
+        return `
+        <div class="bg-white rounded-3xl overflow-hidden relative shadow-sm border border-slate-50 mb-4 animate-in fade-in zoom-in text-left">
+            ${catBadge}
+            ${authorBadge}
+            <div class="h-40 bg-cover bg-center relative" style="background-image:url('${r.i}')">
+                <h3 class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent text-white p-4 pt-12 font-black text-lg leading-tight shadow-sm">${r.n}</h3>
+            </div>
+            <details class="group p-4">
+                <summary class="text-xs font-black text-rose-500 cursor-pointer list-none flex justify-between items-center outline-none bg-rose-50 px-4 py-3 rounded-2xl">
+                    <span class="uppercase tracking-widest">Voir la préparation</span> 
+                    <i data-lucide="chevron-down" class="w-4 h-4 group-open:rotate-180 transition-transform"></i>
+                </summary>
+                <div class="mt-5 text-xs text-slate-600">
+                    <p class="font-black uppercase text-[10px] text-amber-500 mb-2 tracking-widest"><i data-lucide="shopping-basket" class="w-3 h-3 inline"></i> Ingrédients</p>
+                    <p class="mb-5 pl-3 border-l-2 border-amber-100 leading-relaxed font-medium">${ingrHtml}</p>
+                    <p class="font-black uppercase text-[10px] text-indigo-500 mb-2 tracking-widest"><i data-lucide="chef-hat" class="w-3 h-3 inline"></i> Préparation</p>
+                    <p class="pl-3 border-l-2 border-indigo-100 leading-relaxed font-medium">${stepsHtml}</p>
+                </div>
+                ${delBtn}
+            </details>
+        </div>`;
+    }).join('');
+    lucide.createIcons();
+};
+
+let sharedRecListener = false;
+let privateRecListener = false;
+
+setInterval(() => {
+    if (currentUser && !sharedRecListener) {
+        sharedRecListener = true;
+        window.onSnapshot(window.collection(window.db, 'artifacts', appId, 'public', 'data', 'shared_recipes'), (snap) => {
+            allSharedRecipes = [];
+            snap.forEach(doc => allSharedRecipes.push({id: doc.id, ...doc.data()}));
+            allSharedRecipes.sort((a,b) => b.d - a.d);
+            if(currentRecView === 'shared') window.renderSisterRecipes();
+        });
+    }
+    if (currentUser && !privateRecListener) {
+        privateRecListener = true;
+        window.onSnapshot(window.collection(window.db, 'artifacts', appId, 'users', currentUser.id, 'private_recipes'), (snap) => {
+            allPrivateRecipes = [];
+            snap.forEach(doc => allPrivateRecipes.push({id: doc.id, ...doc.data()}));
+            allPrivateRecipes.sort((a,b) => b.d - a.d);
+            if(currentRecView === 'private') window.renderSisterRecipes();
+        });
+    }
+}, 1000);
+
 // ==========================================
 // AJOUT : PASTILLE ROUGE DE NOTIFICATION (SALON)
 // ==========================================
@@ -1415,10 +1594,53 @@ document.addEventListener('input', (e) => {
             </div>
         </section>
         
-        <section class="bg-white rounded-[2.5rem] p-6 shadow-sm space-y-4 border border-rose-50 text-center">
-            <h4 class="text-[9px] font-black text-rose-500 uppercase tracking-[0.2em] italic">Mon Carnet 📒</h4>
-            <div id="custom-recipes-list" class="space-y-2 text-center"></div>
-            <div class="flex gap-2 pt-2"><input type="text" id="recipe-input" placeholder="Idée de repas..." class="flex-1 bg-slate-50 border-none rounded-xl px-5 py-4 text-xs outline-none text-left"><button onclick="window.addManualRecipe()" class="bg-rose-500 text-white p-3 rounded-xl shadow-md active:scale-95 transition"><i data-lucide="plus" class="w-4 h-4"></i></button></div>
+        <section class="bg-white/40 border border-rose-100 rounded-[2.5rem] p-6 shadow-sm text-center">
+            <h4 class="text-[9px] font-black text-rose-500 uppercase tracking-[0.2em] italic mb-4">Marmite & Carnet 🍲</h4>
+            
+            <details id="details-add-recipe" class="bg-white border border-rose-50 rounded-3xl mb-6 group text-left shadow-sm">
+                <summary class="font-black text-rose-500 text-xs cursor-pointer outline-none flex items-center justify-between p-4 uppercase tracking-widest">
+                    <span class="flex items-center gap-2"><i data-lucide="plus-circle" class="w-4 h-4"></i> Nouvelle recette</span>
+                    <i data-lucide="chevron-down" class="w-4 h-4 group-open:rotate-180 transition-transform"></i>
+                </summary>
+                <div class="p-4 pt-0 space-y-3">
+                    <input type="text" id="sr-titre" placeholder="Nom du plat..." class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-bold outline-none text-slate-700">
+                    
+                    <div class="flex gap-2">
+                        <select id="sr-cat" class="w-1/2 bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-[10px] font-bold outline-none text-slate-700 appearance-none uppercase tracking-widest">
+                            <option value="Salé">🍝 Salé</option>
+                            <option value="Sucré">🍰 Sucré</option>
+                        </select>
+                        <select id="sr-vis" class="w-1/2 bg-slate-50 border border-slate-100 rounded-xl px-3 py-3 text-[9px] font-black outline-none text-rose-500 appearance-none uppercase tracking-wider">
+                            <option value="shared">🌍 Publier (Sisters)</option>
+                            <option value="private">🔒 Carnet Privé</option>
+                        </select>
+                    </div>
+
+                    <textarea id="sr-ingr" placeholder="Ingrédients (retour à la ligne pour chaque)..." class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-medium outline-none text-slate-700 h-20"></textarea>
+                    <textarea id="sr-steps" placeholder="Étapes de préparation..." class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-medium outline-none text-slate-700 h-24"></textarea>
+                    
+                    <label class="block w-full py-4 text-center border-2 border-dashed border-rose-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-rose-400 cursor-pointer mb-2 bg-rose-50 hover:bg-rose-100 transition">
+                        <span id="txt-r-photo" class="flex items-center justify-center gap-2"><i data-lucide="camera" class="w-4 h-4"></i> Ajouter une photo</span>
+                        <input type="file" class="hidden" accept="image/*" onchange="window.compressRecipeImg(this)">
+                    </label>
+                    <button onclick="window.addSisterRecipe()" class="w-full bg-rose-500 text-white py-4 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition">Enregistrer la recette</button>
+                </div>
+            </details>
+
+            <div class="flex bg-white rounded-2xl p-1 mb-5 shadow-sm border border-rose-50">
+                <button onclick="window.switchRecView('shared')" id="btn-view-shared" class="flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl bg-rose-500 text-white shadow-sm transition-all">🌍 La Marmite</button>
+                <button onclick="window.switchRecView('private')" id="btn-view-private" class="flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl text-slate-400 bg-transparent transition-all">🔒 Mon Carnet</button>
+            </div>
+
+            <div class="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar justify-center">
+                <button onclick="window.filterSisterRecipes('all')" id="f-rec-all" class="filter-rec-chip bg-slate-800 text-white border-slate-800 px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap shadow-sm">Tout</button>
+                <button onclick="window.filterSisterRecipes('Salé')" id="f-rec-Salé" class="filter-rec-chip bg-white text-slate-400 border-slate-100 px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap shadow-sm">🍝 Salé</button>
+                <button onclick="window.filterSisterRecipes('Sucré')" id="f-rec-Sucré" class="filter-rec-chip bg-white text-slate-400 border-slate-100 px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap shadow-sm">🍰 Sucré</button>
+            </div>
+
+            <div id="list-sisters-recipes" class="space-y-4 pb-12 text-center">
+                <p class="text-[9px] text-slate-400 italic">Chargement des recettes...</p>
+            </div>
         </section>
 
         <section class="space-y-4 text-center pb-8">
