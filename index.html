@@ -43,7 +43,90 @@
         window.arrayUnion = arrayUnion;
 
         let currentUser = null;
-        let activeDayIdx = 1;
+        let activeDayIdx = 1; // sera recalculé après les fonctions de calendrier
+
+        // === CALENDRIER RAMADAN RÉEL ===
+        // Ramadan 1447H : 1er mars 2026 → 30 mars 2026 (estimation)
+        // On démarre le suivi le 28 fév (nuit de la 1ère tarawih)
+        const RAMADAN_START = new Date(2026, 1, 18); // 18 février 2026 = jour 1
+        const RAMADAN_DAYS = 32; // 18 fév → 21 mars inclus
+
+        function getRamadanDay(date) {
+            const d = new Date(date); d.setHours(0,0,0,0);
+            const start = new Date(RAMADAN_START); start.setHours(0,0,0,0);
+            const diff = Math.floor((d - start) / 86400000) + 1;
+            return Math.max(1, Math.min(RAMADAN_DAYS, diff));
+        }
+
+        function getRealDate(dayIdx) {
+            const d = new Date(RAMADAN_START);
+            d.setDate(d.getDate() + dayIdx - 1);
+            return d;
+        }
+
+        function formatDayLabel(dayIdx) {
+            const d = getRealDate(dayIdx);
+            const days = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+            const months = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+            return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
+        }
+
+        function isToday(dayIdx) {
+            const today = new Date(); today.setHours(0,0,0,0);
+            const d = getRealDate(dayIdx); d.setHours(0,0,0,0);
+            return today.getTime() === d.getTime();
+        }
+
+        function isFuture(dayIdx) {
+            const today = new Date(); today.setHours(0,0,0,0);
+            const d = getRealDate(dayIdx); d.setHours(0,0,0,0);
+            return d > today;
+        }
+	// --- AJOUT SÉCURISÉ POUR L'ENREGISTREMENT DES NOTES (JOURNAL, CORAN, TARAWIH) ---
+
+// Fonction pour sauvegarder n'importe quelle note en temps réel
+window.saveNote = async (field, value) => {
+    if (!currentUser) return;
+    const day = dayKey(activeDayIdx);
+    const docRef = doc(window.db, 'artifacts', appId, 'users', currentUser.id, 'days', day);
+    
+    try {
+        await window.updateDoc(docRef, {
+            [field]: value
+        });
+        console.log(`Sauvegarde réussie : ${field}`);
+    } catch (e) {
+        // Si le document n'existe pas encore, on le crée
+        await window.setDoc(docRef, { [field]: value }, { merge: true });
+    }
+};
+
+// Initialisation des écouteurs sur tes zones de texte
+// On utilise 'input' pour sauvegarder à chaque lettre tapée (plus sûr)
+document.addEventListener('input', (e) => {
+    if (e.target.id === 'journal-textarea') {
+        window.saveNote('journal', e.target.value);
+    }
+    if (e.target.id === 'coran-notes-textarea') {
+        window.saveNote('quranNotes', e.target.value);
+    }
+    if (e.target.id === 'tarawih-notes-textarea') {
+        window.saveNote('tarawihNotes', e.target.value);
+    }
+});
+
+// --- FIN DE L'AJOUT ---
+
+        // Jour actif = aujourd'hui
+        activeDayIdx = getRamadanDay(new Date());
+
+        // Clé string pour Firestore — utilise les numéros simples qui correspondent aux données existantes
+        function dayKey(idx) { return `${idx !== undefined ? idx : activeDayIdx}`; }
+        function getDay(idx) { 
+            const k = dayKey(idx);
+            if(!userData[k]) userData[k] = { fasting: false, prayers: [false,false,false,false,false], tarawih: false, tarawihNotes: "", tarawihStop: "", surah: "", quranNotes: "", journal: "", water: 0, objectives: [], suhoorRoutine: [false,false,false,false], dhikr: { sub:0,alh:0,ast:0,akb:0,tah:0 } };
+            return userData[k];
+        }
         let userData = {};
         
         let sharedMessages = [];
@@ -57,11 +140,12 @@
 
         let commonGoalsData = {};
         let readingsData = {};
-        let currentQuestions = [];
+        let notesData = {}; // journal, tarawihNotes, quranNotes, tarawihStop par jour
         let currentQuizIdx = 0;
         let quizScore = 0;
         let currentTheme = ""; 
         let isQuizProcessing = false;
+        let currentQuestions = [];
         
         const USERS = [
             { id: 'samia', name: 'Samia', pin: '2025', color: 'bg-rose-100 text-rose-600' },
@@ -537,20 +621,11 @@
             if (docSnap.exists()) { userData = docSnap.data(); } 
             else {
                 userData = { customRecipes: [] };
-                for(let i=1; i<=30; i++) userData[i] = { 
-                    fasting: false, 
-                    prayers: [false,false,false,false,false], 
-                    tarawih: false, 
-                    tarawihNotes: "", 
-                    tarawihStop: "",
-                    surah: "", 
-                    quranNotes: "", 
-                    journal: "", 
-                    water: 0, 
-                    objectives: [], 
-                    suhoorRoutine: [false, false, false, false], 
-                    dhikr: { sub: 0, alh: 0, ast: 0, akb: 0 },
-                    readingLogs: []
+                for(let i=1; i<=RAMADAN_DAYS; i++) userData[`d${i}`] = { 
+                    fasting: false, prayers: [false,false,false,false,false], tarawih: false,
+                    tarawihNotes: "", tarawihStop: "", surah: "", quranNotes: "",
+                    journal: "", water: 0, objectives: [], suhoorRoutine: [false,false,false,false],
+                    dhikr: { sub: 0, alh: 0, ast: 0, akb: 0, tah: 0 }
                 };
                 await setDoc(docRef, userData);
             }
@@ -563,13 +638,13 @@
         }
 
         window.addWaterGlass = (amt) => {
-            if (!userData[activeDayIdx]) userData[activeDayIdx] = { water: 0 };
-            userData[activeDayIdx].water = Math.max(0, (userData[activeDayIdx].water || 0) + amt);
+            const d_water = getDay();
+            d_water.water = Math.max(0, (d_water.water || 0) + amt);
             updateWaterUI();
             pushData();
         };
         function updateWaterUI() {
-            const val = userData[activeDayIdx]?.water || 0;
+            const val = getDay()?.water || 0;
             const el = document.getElementById('display-water-val');
             if(el) el.innerText = val.toFixed(1);
             const full = Math.floor(val / 0.25);
@@ -624,33 +699,89 @@
             document.getElementById('app-content').classList.remove('hidden');
             document.getElementById('app-nav').classList.remove('hidden');
             document.getElementById('welcome-msg').innerText = `As salam aleykoum ${user.name} ✨`;
-            syncData(user.id);
+            await syncData(user.id);       // await : refreshUI() se termine AVANT loadNotes
             await loadReadings();
             updateReadingsList();
+            await loadNotesForDay(activeDayIdx);  // charge les notes EN DERNIER
         };
-        window.selectDay = (idx) => { activeDayIdx = idx; refreshUI(); updateReadingsList(); };
-        window.toggleFast = () => { userData[activeDayIdx].fasting = !userData[activeDayIdx].fasting; pushData(); refreshUI(); };
+        // Sauvegarde les notes du jour courant dans notesData puis Firebase
+        // ===== NOTES : système ultra-simple =====
+        // Chaque appel lit/écrit directement Firebase avec la clé du jour exact.
+        // Pas d'autosave, pas d'events, pas de cache intermédiaire.
+
+        function notesRef(dayIdx) {
+            return doc(db, 'artifacts', appId, 'public', 'data', 'notes', `${currentUser.id}_day${dayIdx}`);
+        }
+
+        async function loadNotesForDay(dayIdx) {
+            try {
+                const snap = await getDoc(notesRef(dayIdx));
+                alert(`LOAD jour=${dayIdx} exists=${snap.exists()} journal="${snap.exists() ? (snap.data().journal||'').substring(0,20) : 'N/A'}"`);
+                const n = snap.exists() ? snap.data() : {};
+                document.getElementById('input-journal').value = n.journal || '';
+                document.getElementById('input-tarawih-notes').value = n.tarawihNotes || '';
+                document.getElementById('input-quran-notes').value = n.quranNotes || '';
+                document.getElementById('input-tarawih-stop').value = n.tarawihStop || '';
+            } catch(e) {
+                alert(`LOAD ERREUR: ${e.message}`);
+                document.getElementById('input-journal').value = '';
+                document.getElementById('input-tarawih-notes').value = '';
+                document.getElementById('input-quran-notes').value = '';
+                document.getElementById('input-tarawih-stop').value = '';
+            }
+        }
+
+        window.saveJournal = async () => {
+            const btn = document.querySelector('[onclick="window.saveJournal()"]');
+            if(btn) btn.innerText = '⏳ Enregistrement...';
+            try {
+                await setDoc(notesRef(activeDayIdx), {
+                    journal: document.getElementById('input-journal').value || '',
+                    tarawihNotes: document.getElementById('input-tarawih-notes').value || '',
+                    quranNotes: document.getElementById('input-quran-notes').value || '',
+                    tarawihStop: document.getElementById('input-tarawih-stop').value || '',
+                    day: activeDayIdx,
+                    userId: currentUser.id,
+                    savedAt: Date.now()
+                });
+                showToast("Journée enregistrée ✨");
+            } catch(e) {
+                showToast("Erreur, réessaie !");
+            }
+            if(btn) btn.innerText = 'Enregistrer ma journée ✨';
+        };
+
+        window.saveTarawihStop = () => {}; // géré par saveJournal
+
+        window.selectDay = async (idx) => {
+            if(idx === activeDayIdx) return;
+            activeDayIdx = idx;
+            document.getElementById('input-journal').value = '';
+            document.getElementById('input-tarawih-notes').value = '';
+            document.getElementById('input-quran-notes').value = '';
+            document.getElementById('input-tarawih-stop').value = '';
+            refreshUI();               // refreshUI en premier — ne touche plus aux notes
+            updateReadingsList();
+            await loadNotesForDay(activeDayIdx);  // notes chargées EN DERNIER
+        };
+        window.toggleFast = () => { getDay().fasting = !getDay().fasting; pushData(); refreshUI(); };
         window.togglePrayer = (i) => { 
-            if(!userData[activeDayIdx].prayers) userData[activeDayIdx].prayers = [false,false,false,false,false];
-            userData[activeDayIdx].prayers[i] = !userData[activeDayIdx].prayers[i]; 
+            if(!getDay().prayers) getDay().prayers = [false,false,false,false,false];
+            getDay().prayers[i] = !getDay().prayers[i]; 
             pushData(); refreshUI(); 
         };
         window.toggleSuhoorRoutine = (i) => {
-             if(!userData[activeDayIdx].suhoorRoutine) userData[activeDayIdx].suhoorRoutine = [false, false, false, false];
-             userData[activeDayIdx].suhoorRoutine[i] = !userData[activeDayIdx].suhoorRoutine[i];
+             if(!getDay().suhoorRoutine) getDay().suhoorRoutine = [false, false, false, false];
+             getDay().suhoorRoutine[i] = !getDay().suhoorRoutine[i];
              pushData(); refreshUI();
         };
-        window.toggleTarawih = () => { userData[activeDayIdx].tarawih = !userData[activeDayIdx].tarawih; pushData(); refreshUI(); };
+        window.toggleTarawih = () => { getDay().tarawih = !getDay().tarawih; pushData(); refreshUI(); };
         window.addDhikr = async (key) => {
-            if(!userData[activeDayIdx]) userData[activeDayIdx] = {};
-            if(!userData[activeDayIdx].dhikr) userData[activeDayIdx].dhikr = {};
-            // Sanitize : reset si undefined, null, NaN ou pas un nombre
-            const current = userData[activeDayIdx].dhikr[key];
-            if(typeof current !== 'number' || isNaN(current)) {
-                userData[activeDayIdx].dhikr[key] = 0;
-            }
-            userData[activeDayIdx].dhikr[key]++;
-            document.getElementById(`count-${key}`).innerText = userData[activeDayIdx].dhikr[key];
+            const d = getDay();
+            if(!d.dhikr) d.dhikr = {};
+            if(typeof d.dhikr[key] !== 'number' || isNaN(d.dhikr[key])) d.dhikr[key] = 0;
+            d.dhikr[key]++;
+            document.getElementById(`count-${key}`).innerText = d.dhikr[key];
             // Incrémenter le compteur global cumulé (ne baisse JAMAIS)
             try {
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'dhikr_alltime', 'total'), { count: increment(1) });
@@ -662,23 +793,16 @@
         };
         window.openResetModal = () => document.getElementById('reset-modal').classList.remove('hidden');
         window.closeResetModal = () => document.getElementById('reset-modal').classList.add('hidden');
-        window.confirmResetDhikr = () => { userData[activeDayIdx].dhikr = { sub: 0, alh: 0, ast: 0, akb: 0, tah: 0 }; refreshUI(); pushData(); window.closeResetModal(); };
-        window.saveJournal = () => {
-            userData[activeDayIdx].surah = document.getElementById('input-surah').value;
-            userData[activeDayIdx].quranNotes = document.getElementById('input-quran-notes').value;
-            userData[activeDayIdx].tarawihNotes = document.getElementById('input-tarawih-notes').value;
-            userData[activeDayIdx].journal = document.getElementById('input-journal').value;
-            pushData(); showToast("Sauvegardé ✨");
-        };
+        window.confirmResetDhikr = () => { getDay().dhikr = { sub: 0, alh: 0, ast: 0, akb: 0, tah: 0 }; refreshUI(); pushData(); window.closeResetModal(); };
         window.addObjective = () => {
             const input = document.getElementById('objective-input');
             if(!input.value.trim()) return;
-            if(!userData[activeDayIdx].objectives) userData[activeDayIdx].objectives = [];
-            userData[activeDayIdx].objectives.push({ text: input.value.trim(), done: false });
+            if(!getDay().objectives) getDay().objectives = [];
+            getDay().objectives.push({ text: input.value.trim(), done: false });
             input.value = ""; pushData(); refreshUI();
         };
-        window.toggleObjective = (i) => { userData[activeDayIdx].objectives[i].done = !userData[activeDayIdx].objectives[i].done; pushData(); refreshUI(); };
-        window.removeObjective = (i) => { userData[activeDayIdx].objectives.splice(i, 1); pushData(); refreshUI(); };
+        window.toggleObjective = (i) => { getDay().objectives[i].done = !getDay().objectives[i].done; pushData(); refreshUI(); };
+        window.removeObjective = (i) => { getDay().objectives.splice(i, 1); pushData(); refreshUI(); };
         window.addManualRecipe = () => {
             const input = document.getElementById('recipe-input');
             if(!input.value.trim()) return;
@@ -774,22 +898,34 @@
                 : '<p class="text-[9px] text-emerald-300 italic py-2">Aucune lecture enregistrée aujourd\'hui</p>';
         }
 
-        window.saveTarawihStop = async () => {
-            userData[activeDayIdx].tarawihStop = document.getElementById('input-tarawih-stop').value;
-            await pushData();
-        };
+        
         
         function refreshUI() {
-            const d = userData[activeDayIdx]; if(!d) return;
-            let fasted = 0; Object.values(userData).forEach(x => { if(x && typeof x === 'object' && x.fasting) fasted++; });
+            const d = getDay(); if(!d) return;
+            let fasted = 0; 
+            for(let i=1; i<=RAMADAN_DAYS; i++) { if(userData[dayKey(i)]?.fasting) fasted++; }
             document.getElementById('stats-fast-count').innerText = fasted;
+            
+            // Calendrier avec vraies dates
             let calHtml = "";
-            for(let i=1; i<=30; i++) {
-                const cls = `aspect-square flex items-center justify-center rounded-2xl font-bold transition text-[10px] ${userData[i]?.fasting ? 'bg-rose-500 text-white shadow-sm' : 'bg-white text-slate-300'} ${activeDayIdx === i ? 'ring-2 ring-rose-600 ring-offset-2' : ''}`;
-                calHtml += `<button onclick="window.selectDay(${i})" class="${cls}">${i}</button>`;
+            for(let i=1; i<=RAMADAN_DAYS; i++) {
+                const d = getRealDate(i);
+                const dayNum = d.getDate();
+                const isFri = d.getDay() === 5;
+                const past = isFuture(i);
+                const today = isToday(i);
+                const fasted = userData[dayKey(i)]?.fasting;
+                let cls = `flex flex-col items-center justify-center rounded-2xl font-bold transition py-2 px-1 `;
+                if(today) cls += 'ring-2 ring-rose-500 ring-offset-1 ';
+                if(fasted) cls += 'bg-rose-500 text-white shadow-sm ';
+                else if(past) cls += 'bg-slate-50 text-slate-200 ';
+                else if(isFri) cls += 'bg-amber-50 text-amber-400 ';
+                else cls += 'bg-white text-slate-400 ';
+                if(activeDayIdx === i) cls += 'ring-2 ring-rose-600 ring-offset-1 ';
+                calHtml += `<button onclick="window.selectDay(${i})" class="${cls}"><span class="text-xs font-black">${dayNum}</span><span class="text-[7px] opacity-60">${['D','L','M','M','J','V','S'][d.getDay()]}</span></button>`;
             }
             document.getElementById('calendar-grid').innerHTML = calHtml;
-            document.getElementById('day-title').innerText = `Jour ${activeDayIdx}`;
+            document.getElementById('day-title').innerText = formatDayLabel(activeDayIdx) + (isToday(activeDayIdx) ? ' — Aujourd\'hui 🌙' : '');
             document.getElementById('fast-btn').innerText = d.fasting ? "OUI ✨" : "NON";
             document.getElementById('fast-btn').className = `px-5 py-2 rounded-full text-[9px] font-black ${d.fasting ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-400'}`;
             const prayers = ["Fajr", "Dohr", "Asr", "Magh", "Isha"];
@@ -815,8 +951,7 @@
             document.getElementById('tarawih-btn').className = `px-5 py-2 rounded-full text-[9px] font-black ${d.tarawih ? 'bg-indigo-500 text-white shadow-md' : 'bg-slate-100 text-slate-400'}`;
 
             // ✅ FIX: tarawihStop input value set dynamically in refreshUI (not inline template)
-            const tarawihStopInput = document.getElementById('input-tarawih-stop');
-            if(tarawihStopInput) tarawihStopInput.value = d.tarawihStop || '';
+            // tarawihStop est géré par loadNotesForDay uniquement
             
             document.getElementById('objectives-list').innerHTML = d.objectives?.length > 0 ? d.objectives.map((obj, i) => `<div class="flex items-center justify-between bg-slate-50 p-3 rounded-xl mb-2"><div class="flex items-center gap-3"><button onclick="window.toggleObjective(${i})" class="w-5 h-5 rounded-md border-2 border-rose-200 flex items-center justify-center ${obj.done ? 'bg-rose-500 border-rose-500' : ''}">${obj.done ? '<i data-lucide="check" class="w-3 h-3 text-white"></i>' : ''}</button><span class="text-xs ${obj.done ? 'line-through text-slate-400' : 'text-slate-700 font-medium text-left'}">${obj.text}</span></div><button onclick="window.removeObjective(${i})" class="text-slate-300"><i data-lucide="x" class="w-4 h-4"></i></button></div>`).join('') : '<p class="text-[9px] text-slate-400 italic text-center py-2">Aucun objectif...</p>';
             document.getElementById('custom-recipes-list').innerHTML = userData.customRecipes?.length > 0 ? userData.customRecipes.map((rec, i) => `<div class="flex items-center justify-between bg-rose-50/50 p-3 rounded-xl mb-2 border border-rose-100"><span class="text-xs font-semibold text-rose-700 text-left">🍴 ${rec}</span><button onclick="window.removeRecipe(${i})" class="text-rose-300"><i data-lucide="trash-2" class="w-3 h-3"></i></button></div>`).join('') : '<p class="text-[9px] text-slate-300 italic text-center text-center">Carnet vide...</p>';
@@ -829,9 +964,6 @@
             document.getElementById('count-akb').innerText = dh.akb || 0;
             document.getElementById('count-tah').innerText = dh.tah || 0;
             document.getElementById('input-surah').value = d.surah || "";
-            document.getElementById('input-quran-notes').value = d.quranNotes || "";
-            document.getElementById('input-tarawih-notes').value = d.tarawihNotes || "";
-            document.getElementById('input-journal').value = d.journal || "";
 
             // Lectures Coran
             updateReadingsList();
@@ -859,7 +991,56 @@
         }
         window.logout = () => { sessionStorage.clear(); location.reload(); };
         window.onload = () => { lucide.createIcons(); initApp(); };
-    </script>
+
+// ==========================================
+// CORRECTIF DEFINITIF (STYLE FITNESS DUO)
+// ==========================================
+
+// 1. On crée notre base de données locale temporaire pour les notes (comme 'let db =' dans ton app fitness)
+window.mesNotesLocales = window.mesNotesLocales || {};
+
+// 2. On écoute tout ce que tu tapes en direct
+document.addEventListener('input', (e) => {
+    const champs = ['input-journal', 'input-tarawih-notes', 'input-quran-notes', 'input-tarawih-stop'];
+    if (champs.includes(e.target.id) && currentUser) {
+        
+        // On crée la case du jour si elle n'existe pas
+        if (!window.mesNotesLocales[activeDayIdx]) {
+            window.mesNotesLocales[activeDayIdx] = {
+                'input-journal': '',
+                'input-tarawih-notes': '',
+                'input-quran-notes': '',
+                'input-tarawih-stop': ''
+            };
+        }
+        
+        // On sauvegarde ta frappe en direct dans notre variable locale
+        window.mesNotesLocales[activeDayIdx][e.target.id] = e.target.value;
+    }
+});
+
+// 3. Le secret de ton app fitness : la mise à jour ultra-rapide au clic
+// On intercepte le clic sur les jours du calendrier
+const calendrierGlobal = document.getElementById('calendar-grid');
+if (calendrierGlobal) {
+    calendrierGlobal.addEventListener('click', () => {
+        // On donne 50 millisecondes à ton code pour changer de jour et tout effacer
+        setTimeout(() => {
+            // Puis on réinjecte instantanément nos données locales
+            if (window.mesNotesLocales[activeDayIdx]) {
+                const notesDuJour = window.mesNotesLocales[activeDayIdx];
+                
+                // Si notre mémoire locale a du texte, on le remet de force dans la case !
+                if (notesDuJour['input-journal']) document.getElementById('input-journal').value = notesDuJour['input-journal'];
+                if (notesDuJour['input-tarawih-notes']) document.getElementById('input-tarawih-notes').value = notesDuJour['input-tarawih-notes'];
+                if (notesDuJour['input-quran-notes']) document.getElementById('input-quran-notes').value = notesDuJour['input-quran-notes'];
+                if (notesDuJour['input-tarawih-stop']) document.getElementById('input-tarawih-stop').value = notesDuJour['input-tarawih-stop'];
+            }
+        }, 50); // Ce léger délai permet de battre ta fonction refreshUI()
+    });
+}
+
+	    </script>
 
     <style>
         body { 
@@ -935,7 +1116,7 @@
         <button onclick="window.logout()" class="p-3 bg-rose-50 rounded-2xl text-rose-500 active:scale-90 transition"><i data-lucide="power" class="w-6 h-6"></i></button>
     </header>
 
-    <div id="tab-calendar" class="p-4 space-y-6 animate-in fade-in duration-300">
+    <div id="tab-calendar" class="p-4 space-y-6 pb-32 animate-in fade-in duration-300">
         <section class="bg-white border-2 border-rose-100 rounded-[2.5rem] p-6 shadow-sm">
             <div class="flex items-start gap-4">
                 <div class="bg-rose-500 p-3 rounded-2xl shadow-md text-white"><i data-lucide="heart" class="w-5 h-5 fill-current"></i></div>
