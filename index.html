@@ -430,10 +430,19 @@ document.addEventListener('input', (e) => {
                     html += `<div class="flex flex-col gap-4 pb-20">`;
                     html += sharedMessages.map(m => {
                         const isMe = m.authorId === currentUser?.id;
-                        return `<div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-in slide-in-from-bottom-2">
+                        const likesCount = m.likes ? m.likes.length : 0;
+                        const hasLiked = m.likes && m.likes.includes(currentUser?.id);
+
+                        return `<div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-in slide-in-from-bottom-2 relative">
                             <span class="text-[8px] font-black uppercase text-slate-400 mb-1 px-2">${m.authorName}</span>
-                            <div class="${isMe ? 'bg-rose-500 text-white rounded-l-2xl rounded-br-2xl shadow-sm' : 'bg-white text-slate-700 rounded-r-2xl rounded-bl-2xl shadow-xs border border-slate-100'} p-3 max-w-[85%]">
-                                <p class="text-xs font-medium leading-relaxed">${m.text}</p>
+                            <div class="flex items-end gap-1 ${isMe ? 'flex-row-reverse' : 'flex-row'}">
+                                <div class="${isMe ? 'bg-rose-500 text-white rounded-l-2xl rounded-br-2xl shadow-sm' : 'bg-white text-slate-700 rounded-r-2xl rounded-bl-2xl shadow-xs border border-slate-100'} p-3 max-w-[85%]">
+                                    <p class="text-xs font-medium leading-relaxed">${m.text}</p>
+                                </div>
+                                <button onclick="window.likeMessage('${m.id}')" class="bg-white p-1.5 rounded-full shadow-sm border border-slate-100 flex items-center justify-center gap-1 active:scale-95 transition-all ${hasLiked ? 'text-rose-500' : 'text-slate-300'}">
+                                    <i data-lucide="heart" class="w-3 h-3 ${hasLiked ? 'fill-current' : ''}"></i>
+                                    ${likesCount > 0 ? `<span class="text-[8px] font-bold text-slate-600">${likesCount}</span>` : ''}
+                                </button>
                             </div>
                         </div>`;
                     }).join('');
@@ -992,53 +1001,105 @@ document.addEventListener('input', (e) => {
         window.logout = () => { sessionStorage.clear(); location.reload(); };
         window.onload = () => { lucide.createIcons(); initApp(); };
 
+
 // ==========================================
-// CORRECTIF DEFINITIF (STYLE FITNESS DUO)
+// AJOUT : FONCTION POUR LIKER UN MESSAGE
+// ==========================================
+// ==========================================
+// AJOUT : FONCTION POUR LIKER / ENLEVER LE LIKE
+// ==========================================
+window.likeMessage = async (docId) => {
+    if(!currentUser) return;
+    const ref = window.doc(window.db, 'artifacts', appId, 'public', 'data', 'salon_messages', docId);
+    
+    // On cherche le message
+    const msg = sharedMessages.find(x => x.id === docId);
+    if(!msg) return;
+    
+    // On récupère la liste actuelle des likes
+    let currentLikes = msg.likes || [];
+    
+    // Si mon ID est déjà dans la liste, ça veut dire que j'ai déjà liké
+    if (currentLikes.includes(currentUser.id)) {
+        // J'enlève mon ID de la liste (Unlike)
+        currentLikes = currentLikes.filter(id => id !== currentUser.id);
+    } else {
+        // Sinon, j'ajoute mon ID à la liste (Like)
+        currentLikes.push(currentUser.id);
+    }
+    
+    // On met à jour la base de données avec la nouvelle liste
+    await window.updateDoc(ref, { likes: currentLikes });
+};
+
+
+// ==========================================
+// BYPASS FIREBASE : LA VOIE SÉCURISÉE + LOCALSTORAGE
 // ==========================================
 
-// 1. On crée notre base de données locale temporaire pour les notes (comme 'let db =' dans ton app fitness)
-window.mesNotesLocales = window.mesNotesLocales || {};
+// 1. On "écrase" ton bouton Enregistrer pour qu'il utilise le même tuyau que tes verres d'eau
+window.saveJournal = async () => {
+    const btn = document.querySelector('[onclick="window.saveJournal()"]');
+    if(btn) btn.innerText = '⏳ Enregistrement...';
+    
+    // On met tes notes dans la boîte des prières/eau qui n'est PAS bloquée par Firebase
+    const d = getDay(activeDayIdx);
+    d.journal = document.getElementById('input-journal').value || '';
+    d.tarawihNotes = document.getElementById('input-tarawih-notes').value || '';
+    d.quranNotes = document.getElementById('input-quran-notes').value || '';
+    d.tarawihStop = document.getElementById('input-tarawih-stop').value || '';
+    
+    // On envoie au cloud via la fonction sécurisée qui marche déjà
+    await pushData();
+    
+    // On grave aussi sur le disque dur du téléphone par sécurité absolue
+    const cle = `sauv_ram_sisters_${currentUser.id}_jour_${activeDayIdx}`;
+    localStorage.setItem(cle, JSON.stringify({
+        'input-journal': d.journal,
+        'input-tarawih-notes': d.tarawihNotes,
+        'input-quran-notes': d.quranNotes,
+        'input-tarawih-stop': d.tarawihStop
+    }));
+    
+    if(btn) btn.innerText = 'Enregistrer ma journée ✨';
+    showToast("Journée enregistrée (Sécurisé) ✨");
+};
 
-// 2. On écoute tout ce que tu tapes en direct
+// 2. Le Gardien : il récupère tes notes au rafraîchissement
+setInterval(() => {
+    if (!currentUser) return;
+    const d = getDay(activeDayIdx);
+    const cle = `sauv_ram_sisters_${currentUser.id}_jour_${activeDayIdx}`;
+    let memoire = JSON.parse(localStorage.getItem(cle) || null);
+    
+    ['input-journal', 'input-tarawih-notes', 'input-quran-notes', 'input-tarawih-stop'].forEach(id => {
+        const champ = document.getElementById(id);
+        if (!champ) return;
+        
+        // On récupère le nom de la variable correspondante
+        let varName = 'journal';
+        if (id === 'input-tarawih-notes') varName = 'tarawihNotes';
+        if (id === 'input-quran-notes') varName = 'quranNotes';
+        if (id === 'input-tarawih-stop') varName = 'tarawihStop';
+
+        // Si la case est vide, on injecte la sauvegarde cloud (d) ou locale (memoire)
+        if (champ.value === '') {
+            if (memoire && memoire[id]) champ.value = memoire[id];
+            else if (d[varName]) champ.value = d[varName];
+        }
+    });
+}, 300);
+
+// 3. Auto-sauvegarde locale quand tu tapes (au cas où tu oublies de cliquer sur le bouton)
 document.addEventListener('input', (e) => {
     const champs = ['input-journal', 'input-tarawih-notes', 'input-quran-notes', 'input-tarawih-stop'];
     if (champs.includes(e.target.id) && currentUser) {
-        
-        // On crée la case du jour si elle n'existe pas
-        if (!window.mesNotesLocales[activeDayIdx]) {
-            window.mesNotesLocales[activeDayIdx] = {
-                'input-journal': '',
-                'input-tarawih-notes': '',
-                'input-quran-notes': '',
-                'input-tarawih-stop': ''
-            };
-        }
-        
-        // On sauvegarde ta frappe en direct dans notre variable locale
-        window.mesNotesLocales[activeDayIdx][e.target.id] = e.target.value;
+        const cle = `sauv_ram_sisters_${currentUser.id}_jour_${activeDayIdx}`;
+        let memoire = JSON.parse(localStorage.getItem(cle) || '{}');
+        memoire[e.target.id] = e.target.value;
+        localStorage.setItem(cle, JSON.stringify(memoire));
     }
 });
-
-// 3. Le secret de ton app fitness : la mise à jour ultra-rapide au clic
-// On intercepte le clic sur les jours du calendrier
-const calendrierGlobal = document.getElementById('calendar-grid');
-if (calendrierGlobal) {
-    calendrierGlobal.addEventListener('click', () => {
-        // On donne 50 millisecondes à ton code pour changer de jour et tout effacer
-        setTimeout(() => {
-            // Puis on réinjecte instantanément nos données locales
-            if (window.mesNotesLocales[activeDayIdx]) {
-                const notesDuJour = window.mesNotesLocales[activeDayIdx];
-                
-                // Si notre mémoire locale a du texte, on le remet de force dans la case !
-                if (notesDuJour['input-journal']) document.getElementById('input-journal').value = notesDuJour['input-journal'];
-                if (notesDuJour['input-tarawih-notes']) document.getElementById('input-tarawih-notes').value = notesDuJour['input-tarawih-notes'];
-                if (notesDuJour['input-quran-notes']) document.getElementById('input-quran-notes').value = notesDuJour['input-quran-notes'];
-                if (notesDuJour['input-tarawih-stop']) document.getElementById('input-tarawih-stop').value = notesDuJour['input-tarawih-stop'];
-            }
-        }, 50); // Ce léger délai permet de battre ta fonction refreshUI()
-    });
-}
 
 	    </script>
 
