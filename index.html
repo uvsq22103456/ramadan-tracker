@@ -503,17 +503,15 @@ document.addEventListener('input', (e) => {
                 }
                 else if (activeSalonRoom === 'noms') {
                     // Calcul du "round" actuel : avance seulement quand les 4 sœurs ont répondu
-                    // On cherche le premier jour sans réponse complète (4/4)
                     let nomRound = 0;
                     for(let d = 1; d <= 30; d++) {
                         const dd = namesExplanations[`day_${d}`] || {};
                         const allAnswered = USERS.every(u => dd[u.id] && dd[u.id].text);
-                        if(allAnswered) nomRound = d; // ce round est complété
-                        else break; // on s'arrête au premier round incomplet
+                        if(allAnswered) nomRound = d; 
+                        else break; 
                     }
-                    // nomRound = nb de rounds complétés, le round en cours = nomRound + 1
-                    // mais on affiche toujours le round en cours (incomplet ou premier)
-                    const currentRound = nomRound; // index 0-based pour les noms
+                    
+                    const currentRound = nomRound; 
                     const dayKey = `day_${nomRound + 1}`;
                     const dayData = namesExplanations[dayKey] || {};
                     const dayOffset = nomRound * 4;
@@ -521,15 +519,17 @@ document.addEventListener('input', (e) => {
                     html += `<div class="pb-24 space-y-6">`;
                     html += `<div class="bg-amber-100 p-4 rounded-3xl text-center shadow-sm border border-amber-200">
                         <h3 class="text-sm font-black text-amber-800 uppercase tracking-widest">Cercle de Science 📚</h3>
-                        <p class="text-[10px] text-amber-600 italic">Les noms avancent quand toutes les 4 ont répondu 🌟</p>
+                        <p class="text-[10px] text-amber-600 italic">Entraidez-vous si l'une de vous tarde ! 🌟</p>
                         <p class="text-[9px] text-amber-500 font-bold mt-1">Round ${nomRound + 1} / 30</p>
                     </div>`;
+                    
                     html += `<div class="space-y-6">`;
                     USERS.forEach((u, i) => {
                         const nameIdx = (dayOffset + i) % 99; 
                         const nameObj = ALLAH_NAMES[nameIdx];
                         const userExpl = dayData[u.id]; 
                         const isMe = currentUser?.id === u.id;
+                        
                         html += `
                         <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 relative overflow-hidden">
                             <div class="absolute top-0 right-0 ${u.color.replace('text-', 'bg-').replace('100', '500')} w-16 h-16 rounded-bl-full opacity-10"></div>
@@ -542,21 +542,66 @@ document.addEventListener('input', (e) => {
                                  <div class="w-10 h-10 rounded-full ${u.color} flex items-center justify-center font-bold text-sm border-2 border-white shadow-sm">${u.name.charAt(0)}</div>
                             </div>
                             ${userExpl && userExpl.text ? 
-                                `<div class="bg-slate-50 p-4 rounded-2xl text-xs text-slate-700 leading-relaxed border border-slate-100 whitespace-pre-line">${userExpl.text}</div>
+                                // Si c'est déjà répondu
+                                `<div class="bg-slate-50 p-4 rounded-2xl text-xs text-slate-700 leading-relaxed border border-slate-100 whitespace-pre-line text-left">${userExpl.text}</div>
                                 <div class="mt-2 flex justify-between items-center">
-                                    <span class="text-[8px] font-bold text-emerald-500 uppercase tracking-widest">Validé ✨</span>
-                                    ${isMe ? `<button onclick="window.resetNameExpl('${u.id}', '${dayKey}')" class="text-[8px] font-bold text-amber-500 uppercase flex items-center gap-1 border border-amber-100 px-2 py-1 rounded-lg bg-amber-50"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> Modifier</button>` : ''}
+                                    <span class="text-[8px] font-bold text-emerald-500 uppercase tracking-widest">Validé par ${userExpl.author || u.name} ✨</span>
+                                    ${(isMe || currentUser?.name === userExpl.author) ? `<button onclick="window.resetNameExpl('${u.id}', '${dayKey}')" class="text-[8px] font-bold text-amber-500 uppercase flex items-center gap-1 border border-amber-100 px-2 py-1 rounded-lg bg-amber-50"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> Modifier</button>` : ''}
                                 </div>`
                                 :
-                                (isMe ? 
-                                    `<div class="mt-2"><p class="text-[10px] text-rose-500 font-bold mb-2 uppercase">C'est ton tour ! Que signifie ce nom ?</p><textarea id="name-expl-${u.id}" rows="4" placeholder="Partage ta science..." class="w-full bg-slate-50 rounded-2xl p-3 text-xs outline-none mb-2 border border-slate-100"></textarea><button onclick="window.submitNameExpl('${u.id}', '${dayKey}')" class="w-full bg-slate-900 text-white py-3 rounded-xl font-black text-[10px] uppercase shadow-md">Publier ma leçon</button></div>`
-                                    :
-                                    `<div class="bg-slate-50 p-4 rounded-2xl text-center border border-slate-100 border-dashed"><p class="text-[10px] text-slate-400 italic">En attente de ${u.name}... ⏳</p></div>`
-                                )
+                                // Si c'est vide (n'importe qui peut aider)
+                                `<div class="mt-2">
+                                    <p class="text-[10px] text-rose-500 font-bold mb-2 uppercase">${isMe ? "C'est ton tour ! Que signifie ce nom ?" : `Aide ${u.name} si elle tarde ! 🤝`}</p>
+                                    <textarea id="name-expl-${u.id}" rows="4" placeholder="Partage ta science..." class="w-full bg-slate-50 rounded-2xl p-3 text-xs outline-none mb-2 border border-slate-100 text-left"></textarea>
+                                    <button onclick="window.submitNameExpl('${u.id}', '${dayKey}')" class="w-full ${isMe ? 'bg-slate-900' : 'bg-rose-500'} text-white py-3 rounded-xl font-black text-[10px] uppercase shadow-md active:scale-95 transition">
+                                        ${isMe ? 'Publier ma leçon' : `Publier pour ${u.name}`}
+                                    </button>
+                                </div>`
                             }
                         </div>`;
                     });
-                    html += `</div></div>`;
+                    html += `</div>`; // Fin des cartes du round
+
+                    // === AJOUT DES ARCHIVES ===
+                    if (nomRound > 0) {
+                        html += `
+                        <div class="mt-8 pt-6 border-t border-slate-100">
+                            <h3 class="text-xs font-black text-amber-800 uppercase tracking-widest text-center mb-4">📚 Archives des Noms</h3>
+                            <div class="space-y-3">`;
+                        
+                        for(let r = 1; r <= nomRound; r++) {
+                            const rKey = `day_${r}`;
+                            const rData = namesExplanations[rKey] || {};
+                            const rOffset = (r - 1) * 4;
+                            
+                            html += `
+                            <details class="bg-amber-50/50 rounded-2xl group border border-amber-100 shadow-sm text-left">
+                                <summary class="p-4 text-[10px] font-black uppercase text-amber-700 cursor-pointer list-none flex justify-between items-center outline-none">
+                                    <span>Round ${r} ✅</span>
+                                    <i data-lucide="chevron-down" class="w-4 h-4 group-open:rotate-180 transition-transform"></i>
+                                </summary>
+                                <div class="p-4 pt-0 space-y-3">`;
+                            
+                            USERS.forEach((u, i) => {
+                                const nIdx = (rOffset + i) % 99;
+                                const nObj = ALLAH_NAMES[nIdx];
+                                const expl = rData[u.id];
+                                if(expl && expl.text) {
+                                    html += `
+                                    <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-50">
+                                        <h4 class="font-black text-slate-800 text-xs">${nObj.n} <span class="text-[9px] text-slate-400 font-normal italic">(${nObj.t})</span></h4>
+                                        <p class="text-[10px] text-slate-600 mt-2 whitespace-pre-line leading-relaxed">${expl.text}</p>
+                                        <p class="text-[8px] text-emerald-500 mt-2 font-bold uppercase text-right">Fait par ${expl.author || u.name}</p>
+                                    </div>`;
+                                }
+                            });
+                            
+                            html += `</div></details>`;
+                        }
+                        html += `</div></div>`;
+                    }
+                    
+                    html += `</div>`; // Fin du conteneur global
                 }
 
                 container.innerHTML = html;
